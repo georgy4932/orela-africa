@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+import InstallPrompt from './components/InstallPrompt'
 
 import AdminPage     from './pages/Admin'
 import PrivacyPage   from './pages/Privacy'
@@ -126,6 +127,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppRoutes />
+      <InstallPrompt />
     </AuthProvider>
   )
 }
