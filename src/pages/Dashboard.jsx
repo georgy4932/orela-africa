@@ -117,7 +117,7 @@ export default function DashboardPage() {
       {/* Verification banner — shown to unverified facilities */}
       {!facility?.is_verified && (
         <div style={{
-          display: 'flex', alignItems: 'flex-start', gap: 14,
+          display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap',
           padding: '14px 18px', marginBottom: 16,
           background: 'rgba(245,165,36,0.06)',
           border: '1px solid rgba(245,165,36,0.2)',
@@ -324,6 +324,7 @@ export default function DashboardPage() {
             <span className="section-shell-title">Recent Stock Movement</span>
             <Link to="/inventory" className="btn btn-xs btn-ghost">Inventory</Link>
           </div>
+          <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
           <table>
             <thead>
               <tr>
@@ -349,6 +350,7 @@ export default function DashboardPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

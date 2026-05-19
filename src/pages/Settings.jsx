@@ -87,10 +87,10 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="settings-layout">
         {/* Left nav */}
-        <div className="card card-pad" style={{ position: 'sticky', top: 24 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <div className="card card-pad settings-nav-card">
+          <div className="settings-nav-inner">
             {[
               { key: 'profile',    label: 'Network Identity' },
               { key: 'operations', label: 'Network Settings' },

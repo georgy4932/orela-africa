@@ -63,7 +63,7 @@ export default function AlertsPage() {
             const item = a.inventory_items
             const med  = item?.medicines
             return (
-              <div key={a.id} className="card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <div key={a.id} className="card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
                 <div className={`activity-dot ${alertDotClass(a.alert_type)}`} style={{ marginTop: 4, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>

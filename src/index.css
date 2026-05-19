@@ -369,3 +369,13 @@ tbody tr:last-child td{border-bottom:none}
   .page-actions{width:100%}
   .page-actions .btn{flex:1;justify-content:center}
 }
+
+/* Settings two-column layout — collapses to single column on mobile */
+.settings-layout{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start}
+.settings-nav-card{position:sticky;top:24px}
+.settings-nav-inner{display:flex;flex-direction:column;gap:1px}
+@media(max-width:640px){
+  .settings-layout{grid-template-columns:1fr}
+  .settings-nav-card{position:static}
+  .settings-nav-inner{flex-direction:row;flex-wrap:wrap;gap:4px}
+}

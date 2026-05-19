@@ -108,7 +108,7 @@ export default function SearchPage() {
                 </select>
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
               <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
                 Only verified facilities appear in search results. Unverified facilities are hidden from the network until their registration is confirmed.
               </div>
