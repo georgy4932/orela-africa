@@ -345,6 +345,7 @@ function ActionModal({ action: { type, transfer }, facilityId, onClose, onSucces
         .eq('facility_id', facilityId)
         .eq('medicine_id', transfer.medicine_id)
         .eq('is_active', true)
+        .eq('network_suppressed', false)
         .then(({ data }) => setInventoryItems(data ?? []))
     }
   }, [type])
