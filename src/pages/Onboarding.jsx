@@ -49,6 +49,7 @@ export default function OnboardingPage() {
       ...form,
       near_expiry_threshold_days: Number(form.near_expiry_threshold_days),
       created_by: session.user.id,
+      is_verified: false,
     })
     if (err) { setError(err.message); setLoading(false); return }
     await refreshFacility()
