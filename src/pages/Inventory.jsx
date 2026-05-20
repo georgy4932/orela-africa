@@ -8,6 +8,189 @@ import {
 } from '../utils/formatters'
 import { Modal, InlineError, EmptyState, Badge, SkeletonRow, ContextCard } from '../components/shared'
 
+// ---------------------------------------------------------------------------
+// GS1 barcode parser — extracts batch number, expiry date, and GTIN
+// from GS1-128 and DataMatrix pharmaceutical barcodes.
+// ---------------------------------------------------------------------------
+function parseGS1Barcode(raw) {
+  const result = { raw, batchNumber: '', expiryDate: '', gtin: '' }
+  if (!raw) return result
+
+  // Strip scanner prefix codes (e.g. ]C1 = GS1-128, ]d2 = DataMatrix)
+  let s = raw.replace(/^\][A-Za-z]\d/, '')
+
+  // Normalize parenthesised AI notation: (01)12345 → 0112345
+  s = s.replace(/\((\d{2,4})\)/g, '$1')
+
+  const FNC1 = '\x1d' // GS1 field separator character
+
+  // Fixed-length Application Identifiers (AI → data length after the AI digits)
+  const FIXED = { '00':18, '01':14, '02':14, '11':6, '13':6, '15':6, '17':6, '20':2 }
+  // Variable-length AIs (data terminated by FNC1 or end of string)
+  const VARIABLE = new Set(['10','21','22','30','310','320','710','711','712'])
+
+  let i = 0
+  while (i < s.length) {
+    if (s[i] === FNC1) { i++; continue }
+
+    // Try 2-digit AI
+    const ai2 = s.substr(i, 2)
+    if (FIXED[ai2] !== undefined) {
+      const val = s.substr(i + 2, FIXED[ai2])
+      if ((ai2 === '01' || ai2 === '02') && val.length === 14) result.gtin = val
+      if (ai2 === '17' || ai2 === '15') {
+        const yy = parseInt(val.substr(0, 2), 10)
+        const mm = val.substr(2, 2)
+        const rawDay = val.substr(4, 2)
+        const dd = rawDay === '00' ? '01' : rawDay
+        const yyyy = yy >= 50 ? `19${String(yy).padStart(2,'0')}` : `20${String(yy).padStart(2,'0')}`
+        result.expiryDate = `${yyyy}-${mm}-${dd}`
+      }
+      i += 2 + FIXED[ai2]
+      continue
+    }
+    if (VARIABLE.has(ai2)) {
+      i += 2
+      const sep = s.indexOf(FNC1, i)
+      const val = sep === -1 ? s.substr(i) : s.substr(i, sep - i)
+      if (ai2 === '10') result.batchNumber = val
+      i = sep === -1 ? s.length : sep + 1
+      continue
+    }
+    // Not a recognised GS1 structure — treat entire raw as batch number
+    result.batchNumber = raw
+    break
+  }
+
+  // Fallback: if nothing matched, use raw value as batch number
+  if (!result.batchNumber && !result.gtin && !result.expiryDate) {
+    result.batchNumber = raw
+  }
+  return result
+}
+
+// ---------------------------------------------------------------------------
+// BarcodeScanner — live camera scanning via @zxing/browser (works on
+// iOS Safari, Chrome, Firefox). Loaded dynamically to keep initial bundle small.
+// ---------------------------------------------------------------------------
+function BarcodeScanner({ onScan, onCancel }) {
+  const videoRef = useRef(null)
+  const [status, setStatus] = useState('loading') // 'loading' | 'scanning' | 'error'
+  const [errMsg, setErrMsg] = useState('')
+
+  useEffect(() => {
+    let stopped = false
+    let controls = null
+
+    async function start() {
+      try {
+        const { BrowserMultiFormatReader } = await import('@zxing/browser')
+        if (stopped) return
+
+        const reader = new BrowserMultiFormatReader()
+        const cb = (result, _err) => {
+          if (stopped || !result) return
+          const text = result.getText()
+          if (text) { stopped = true; onScan(text) }
+        }
+
+        // Prefer rear-facing camera (critical for mobile usability)
+        try {
+          controls = await reader.decodeFromConstraints(
+            { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+            videoRef.current, cb
+          )
+        } catch {
+          // Fallback: accept any camera (covers desktop webcams)
+          if (stopped) return
+          controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, cb)
+        }
+        if (!stopped) setStatus('scanning')
+      } catch (e) {
+        if (stopped) return
+        const msg = String(e?.message ?? e)
+        if (/permission|denied|not allowed/i.test(msg))
+          setErrMsg('Camera permission denied. Allow camera access in browser settings, then try again.')
+        else if (/not found|no device|no camera/i.test(msg))
+          setErrMsg('No camera found on this device.')
+        else
+          setErrMsg('Could not start camera. Enter the batch number manually instead.')
+        setStatus('error')
+      }
+    }
+
+    start()
+    return () => {
+      stopped = true
+      try { controls?.stop() } catch (_) {}
+    }
+  }, [])
+
+  if (status === 'error') {
+    return (
+      <div style={{ textAlign: 'center', padding: '28px 16px', display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+        </svg>
+        <div style={{ fontSize: 12.5, color: 'var(--danger)', maxWidth: 280, lineHeight: 1.55 }}>{errMsg}</div>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Enter manually instead</button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Camera viewfinder */}
+      <div style={{ position: 'relative', background: '#000', borderRadius: 'var(--r-lg)', overflow: 'hidden', aspectRatio: '4/3', maxHeight: 300 }}>
+        <video
+          ref={videoRef}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          muted playsInline autoPlay
+        />
+        {/* Overlay */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, transparent 38%, rgba(0,0,0,0.52) 100%)' }} />
+          {/* Target rectangle */}
+          <div style={{ position: 'relative', width: '78%', height: '42%', border: '2px solid rgba(25,194,181,0.9)', borderRadius: 'var(--r)', zIndex: 1 }}>
+            {/* Animated scan line */}
+            {status === 'scanning' && (
+              <div style={{
+                position: 'absolute', left: 4, right: 4, height: 2,
+                background: 'linear-gradient(90deg, transparent, var(--primary) 50%, transparent)',
+                animation: 'scanLine 2s ease-in-out infinite',
+              }} />
+            )}
+            {/* Corner marks */}
+            {[[0,0],[0,1],[1,0],[1,1]].map(([r,c],i) => (
+              <div key={i} style={{
+                position:'absolute', width:12, height:12,
+                [r ? 'bottom' : 'top']: -2, [c ? 'right' : 'left']: -2,
+                borderColor: 'var(--primary)', borderStyle: 'solid',
+                borderTopWidth: r ? 0 : 3, borderBottomWidth: r ? 3 : 0,
+                borderLeftWidth: c ? 0 : 3, borderRightWidth: c ? 3 : 0,
+                borderRadius: r ? (c ? '0 0 3px 0':'0 0 0 3px') : (c ? '0 3px 0 0':'3px 0 0 0'),
+              }}/>
+            ))}
+          </div>
+        </div>
+        {status === 'loading' && (
+          <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <div className="spinner spinner-lg" />
+          </div>
+        )}
+      </div>
+      <p style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+        {status === 'scanning'
+          ? 'Align the barcode inside the frame — it will scan automatically'
+          : 'Starting camera…'}
+      </p>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel} style={{ width: '100%' }}>
+        Cancel — enter manually
+      </button>
+    </div>
+  )
+}
+
 const STORAGE_CONDS = ['room_temperature','cool','refrigerated','frozen','controlled_room','protect_from_light','protect_from_moisture']
 const MOVEMENT_TYPES = [
   { value: 'receipt',         label: 'Receipt — stock received from supplier' },
@@ -466,9 +649,22 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
     brand_name: '', supplier_id: '', manufacture_date: '', unit_cost: '', selling_price: '',
     storage_condition: 'room_temperature', storage_location: '', notes: '',
   })
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState(null)
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState(null)
+  const [entryMode,  setEntryMode]  = useState('manual')   // 'manual' | 'scan'
+  const [lastScan,   setLastScan]   = useState(null)        // parsed GS1 result
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
+
+  function handleScan(raw) {
+    const parsed = parseGS1Barcode(raw)
+    setF(prev => ({
+      ...prev,
+      batch_number: parsed.batchNumber || prev.batch_number,
+      expiry_date:  parsed.expiryDate  || prev.expiry_date,
+    }))
+    setLastScan(parsed)
+    setEntryMode('manual')
+  }
 
   async function handleSubmit(e) {
     e.preventDefault(); setError(null); setLoading(true)
@@ -500,11 +696,58 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
     <Modal title="Add stock batch" subtitle="Stock you add becomes visible to the medicine availability network" onClose={onClose} size="modal-lg"
       footer={<>
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" form="add-form" type="submit" disabled={loading}>
-          {loading ? <><div className="spinner spinner-sm" style={{ borderTopColor: '#07111f' }}/> Adding…</> : 'Add to network'}
-        </button>
+        {entryMode === 'manual' && (
+          <button className="btn btn-primary" form="add-form" type="submit" disabled={loading}>
+            {loading ? <><div className="spinner spinner-sm" style={{ borderTopColor: '#07111f' }}/> Adding…</> : 'Add to network'}
+          </button>
+        )}
       </>}
     >
+      {/* Entry mode toggle */}
+      <div style={{ display: 'flex', background: 'var(--bg-primary)', borderRadius: 'var(--r-md)', padding: 3, gap: 3 }}>
+        {[
+          { key: 'manual', label: 'Enter manually', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
+          { key: 'scan',   label: 'Scan barcode',  icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> },
+        ].map(({ key, label, icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setEntryMode(key)}
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '7px 12px', borderRadius: 'var(--r)', fontSize: 12, fontWeight: 500,
+              border: 'none', cursor: 'pointer', transition: 'all var(--t)',
+              background: entryMode === key ? 'var(--bg-elevated)' : 'transparent',
+              color: entryMode === key ? 'var(--text-primary)' : 'var(--text-muted)',
+              boxShadow: entryMode === key ? 'var(--shadow-sm)' : 'none',
+            }}
+          >
+            {icon}{label}
+          </button>
+        ))}
+      </div>
+
+      {/* Scan mode */}
+      {entryMode === 'scan' && (
+        <BarcodeScanner onScan={handleScan} onCancel={() => setEntryMode('manual')} />
+      )}
+
+      {/* Scan success notice */}
+      {entryMode === 'manual' && lastScan && (
+        <div className="inline-alert alert-success" style={{ fontSize: 11.5 }}>
+          <span className="inline-alert-icon">✓</span>
+          <div>
+            <strong>Barcode scanned</strong>
+            {lastScan.batchNumber && <span> · Batch: <code style={{ fontFamily: 'var(--font-mono)' }}>{lastScan.batchNumber}</code></span>}
+            {lastScan.expiryDate  && <span> · Expiry auto-filled</span>}
+            {!lastScan.batchNumber && !lastScan.expiryDate && <span> · Raw: <code style={{ fontFamily: 'var(--font-mono)' }}>{lastScan.raw}</code></span>}
+            <span style={{ color: 'var(--success)', opacity: 0.75 }}> — select the medicine below</span>
+          </div>
+        </div>
+      )}
+
+      {/* Manual entry form — hidden while scanner is active */}
+      <div style={{ display: entryMode === 'scan' ? 'none' : 'contents' }}>
       <InlineError message={error} />
       <form id="add-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div>
@@ -676,6 +919,7 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
           </div>
         </div>
       </form>
+      </div>{/* end manual entry wrapper */}
     </Modal>
   )
 }
