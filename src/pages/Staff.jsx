@@ -254,7 +254,7 @@ function InviteModal({ facilityId, onClose, onSuccess }) {
       .limit(1)
 
     if (!users || users.length === 0) {
-      setError('No account found with that email. They must create a MediChain account first.')
+      setError('No account found with that email. They must create a Orela account first.')
       setLoading(false); return
     }
 
@@ -290,7 +290,7 @@ function InviteModal({ facilityId, onClose, onSuccess }) {
   return (
     <Modal
       title="Add staff member"
-      subtitle="The person must already have a MediChain account"
+      subtitle="The person must already have a Orela account"
       onClose={onClose}
       size="modal-sm"
       footer={<>

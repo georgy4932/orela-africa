@@ -123,7 +123,7 @@ export default function SettingsPage() {
               <div className="card-header">
                 <div>
                   <div className="card-title">Network Identity</div>
-                  <div className="card-subtitle">How your facility appears in the MediChain medicine availability network</div>
+                  <div className="card-subtitle">How your facility appears in the Orela medicine availability network</div>
                 </div>
                 {facility?.is_verified
                   ? <Badge className="badge-success" dot>Verified</Badge>

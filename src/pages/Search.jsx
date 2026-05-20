@@ -126,7 +126,7 @@ export default function SearchPage() {
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
               {[
-                { label: 'What this search does', desc: 'Queries real-time medicine availability across all facilities that have published stock to the MediChain network.' },
+                { label: 'What this search does', desc: 'Queries real-time medicine availability across all facilities that have published stock to the Orela network.' },
                 { label: 'What is shown', desc: 'Available quantity (excluding reserved stock), earliest expiry date, number of batches, and facility verification status.' },
                 { label: 'What is protected', desc: 'Supplier details, cost pricing, batch-level data, reserved quantities, and facility contact information are not exposed.' },
               ].map(item => (
