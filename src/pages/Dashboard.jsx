@@ -8,6 +8,7 @@ import {
   transferStatusClass, transferStatusLabel,
 } from '../utils/formatters'
 import { Badge } from '../components/shared'
+import { appUrl } from '../lib/appUrl'
 
 export default function DashboardPage() {
   const { facility, facilityId, expiryThreshold } = useFacility()
@@ -143,7 +144,7 @@ export default function DashboardPage() {
               Your facility is not yet visible in the medicine availability network. Other facilities cannot find your stock or request transfers until verification is complete.
               {facility?.registration_number
                 ? <span> Your registration number <strong style={{color:'var(--text-primary)'}}>{facility.registration_number}</strong> has been submitted and is under review.</span>
-                : <span> Please add your PCN/NAFDAC registration number in <a href="/settings" style={{color:'var(--warning)'}}>Settings → Network Identity</a> to begin verification.</span>
+                : <span> Please add your PCN/NAFDAC registration number in <a href={appUrl('/settings')} style={{color:'var(--warning)'}}>Settings → Network Identity</a> to begin verification.</span>
               }
             </div>
             <div style={{fontSize:11, color:'var(--text-muted)', marginTop:6}}>
