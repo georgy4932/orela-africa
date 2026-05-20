@@ -148,8 +148,8 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="table-container">
+      {/* Table — hidden on mobile, replaced by cards below */}
+      <div className="table-container inv-desktop">
         <table>
           <thead>
             <tr>
@@ -251,6 +251,88 @@ export default function InventoryPage() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card list — hidden on desktop, shown on ≤640px */}
+      <div className="inv-mobile-list">
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: 12 }}>Loading...</div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            title="No inventory items"
+            description="Add inventory to make your facility visible in the medicine availability network."
+            actions={<>
+              <button className="btn btn-primary btn-sm" onClick={() => setAddOpen(true)}>Add stock batch</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setFilter('all')}>Clear filters</button>
+            </>}
+          />
+        ) : filtered.map(item => {
+          const available = item.quantity_available - item.quantity_reserved
+          return (
+            <div key={item.id} className="inv-card">
+              <div className="inv-card-head">
+                <div style={{ minWidth: 0 }}>
+                  <div className="inv-card-name" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span className="truncate">{item.medicines?.generic_name}</span>
+                    {item.medicines?.essential_medicine && (
+                      <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--primary)', background: 'var(--primary-dim)', border: '1px solid var(--primary-border)', borderRadius: 'var(--r-xs)', padding: '1px 4px', flexShrink: 0 }}>ESS</span>
+                    )}
+                  </div>
+                  <div className="inv-card-meta">
+                    {item.brand_name ? `${item.brand_name} · ` : ''}
+                    {item.medicines?.strength} {item.medicines?.dosage_form}
+                  </div>
+                </div>
+                <Badge className={stockStatusClass(available, item.reorder_level)} dot>
+                  {stockStatusLabel(available, item.reorder_level)}
+                </Badge>
+              </div>
+              <div className="inv-card-stats">
+                <div className="inv-stat">
+                  <span className="inv-stat-lbl">Available</span>
+                  <span className="inv-stat-val" style={{ fontFamily: 'var(--font-mono)', color: 'var(--primary)' }}>
+                    {fmtNumber(available)} <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.dispensing_unit ? `${item.dispensing_unit}s` : 'units'}</span>
+                  </span>
+                </div>
+                <div className="inv-stat">
+                  <span className="inv-stat-lbl">Reorder at</span>
+                  <span className="inv-stat-val" style={{ fontFamily: 'var(--font-mono)', color: available < item.reorder_level ? 'var(--warning)' : 'var(--text-muted)' }}>
+                    {item.reorder_level}
+                  </span>
+                </div>
+                <div className="inv-stat">
+                  <span className="inv-stat-lbl">Expiry</span>
+                  <Badge className={expiryBadgeClass(item.expiry_date)}>{fmtExpiryLabel(item.expiry_date)}</Badge>
+                </div>
+                {item.selling_price && (
+                  <div className="inv-stat">
+                    <span className="inv-stat-lbl">Price</span>
+                    <span className="inv-stat-val">{fmtCurrency(item.selling_price, facility?.default_currency)}</span>
+                  </div>
+                )}
+              </div>
+              {item.quantity_reserved > 0 && (
+                <div style={{ fontSize: 11, color: 'var(--warning)', marginBottom: 8 }}>
+                  {item.quantity_reserved} reserved for pending transfer
+                </div>
+              )}
+              {item.network_suppressed && (
+                <div style={{ fontSize: 11, color: 'var(--danger)', marginBottom: 8 }}>
+                  Hidden from network search
+                </div>
+              )}
+              <div className="inv-card-foot">
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-muted)' }}>
+                  {item.batch_number}
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-ghost btn-xs" onClick={() => setAdjItem(item)}>Adjust</button>
+                  <button className="btn btn-ghost btn-xs" onClick={() => setEditItem(item)}>Edit</button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {addOpen  && <AddModal key={Date.now()} facilityId={facilityId} medicines={medicines} suppliers={suppliers} currency={facility?.default_currency} onClose={() => setAddOpen(false)}  onSuccess={() => { setAddOpen(false);  load() }} />}
