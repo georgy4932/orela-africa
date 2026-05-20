@@ -41,7 +41,7 @@ export function AuthProvider({ children }) {
   async function loadProfile(userId) {
     const { data: prof } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select('id, full_name, role, avatar_url, created_at')
       .eq('id', userId)
       .single()
 
@@ -50,7 +50,14 @@ export function AuthProvider({ children }) {
     if (prof) {
       const { data: staff } = await supabase
         .from('facility_staff')
-        .select('facility_id, role, facilities(*)')
+        .select(`
+          facility_id, role,
+          facilities(
+            id, name, facility_type, registration_number,
+            city, state_province, country,
+            is_verified, is_active, email, phone, created_at
+          )
+        `)
         .eq('user_id', userId)
         .eq('is_active', true)
         .limit(1)
