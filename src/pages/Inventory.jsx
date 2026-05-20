@@ -41,7 +41,15 @@ export default function InventoryPage() {
     setLoading(true)
     const { data } = await supabase
       .from('inventory_items')
-      .select('*, medicines(generic_name, dosage_form, strength, therapeutic_class, essential_medicine), suppliers(name)')
+      .select(`
+        id, batch_number, quantity_available, quantity_reserved, reorder_level,
+        expiry_date, manufacture_date, brand_name, pack_size, dispensing_unit,
+        unit_cost, selling_price, storage_condition, storage_location,
+        notes, is_active, supplier_id, medicine_id, facility_id, created_at,
+        network_suppressed,
+        medicines(generic_name, dosage_form, strength, therapeutic_class, essential_medicine),
+        suppliers(name)
+      `)
       .eq('facility_id', facilityId).eq('is_active', true)
       .order('created_at', { ascending: false })
     setItems(data ?? [])

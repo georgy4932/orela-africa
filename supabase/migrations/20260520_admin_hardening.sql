@@ -19,13 +19,13 @@ CREATE TABLE IF NOT EXISTS public.admin_audit_logs (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS admin_audit_logs_actor_idx     ON public.admin_audit_logs (actor_user_id);
-CREATE INDEX IF NOT EXISTS admin_audit_logs_target_idx    ON public.admin_audit_logs (target_table, target_id);
-CREATE INDEX IF NOT EXISTS admin_audit_logs_created_idx   ON public.admin_audit_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS admin_audit_logs_actor_idx   ON public.admin_audit_logs (actor_user_id);
+CREATE INDEX IF NOT EXISTS admin_audit_logs_target_idx  ON public.admin_audit_logs (target_table, target_id);
+CREATE INDEX IF NOT EXISTS admin_audit_logs_created_idx ON public.admin_audit_logs (created_at DESC);
 
 ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
 
--- System admins can read. No direct inserts allowed — RPCs only (SECURITY DEFINER bypasses RLS).
+-- System admins can read. No direct inserts — RPCs only (SECURITY DEFINER bypasses RLS).
 DROP POLICY IF EXISTS "system_admin read audit logs" ON public.admin_audit_logs;
 CREATE POLICY "system_admin read audit logs"
   ON public.admin_audit_logs FOR SELECT
@@ -50,14 +50,26 @@ ALTER TABLE public.facilities
 -- 3. Schema additions: inventory_items
 -- ---------------------------------------------------------------
 ALTER TABLE public.inventory_items
-  ADD COLUMN IF NOT EXISTS admin_reviewed_at   timestamptz,
-  ADD COLUMN IF NOT EXISTS admin_reviewed_by   uuid REFERENCES auth.users(id),
-  ADD COLUMN IF NOT EXISTS admin_removed_at    timestamptz,
-  ADD COLUMN IF NOT EXISTS admin_removed_by    uuid REFERENCES auth.users(id),
-  ADD COLUMN IF NOT EXISTS admin_remove_reason text;
+  ADD COLUMN IF NOT EXISTS network_suppressed    boolean     NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS admin_reviewed_at     timestamptz,
+  ADD COLUMN IF NOT EXISTS admin_reviewed_by     uuid REFERENCES auth.users(id),
+  ADD COLUMN IF NOT EXISTS admin_removed_at      timestamptz,
+  ADD COLUMN IF NOT EXISTS admin_removed_by      uuid REFERENCES auth.users(id),
+  ADD COLUMN IF NOT EXISTS admin_remove_reason   text;
+
+-- Index: medicine_search will filter on this column
+CREATE INDEX IF NOT EXISTS inventory_items_network_suppressed_idx
+  ON public.inventory_items (network_suppressed)
+  WHERE network_suppressed = true;
 
 -- ---------------------------------------------------------------
--- 4. RPC: admin_verify_facility
+-- 4. Schema additions: batch_alerts
+-- ---------------------------------------------------------------
+ALTER TABLE public.batch_alerts
+  ADD COLUMN IF NOT EXISTS resolved_by uuid REFERENCES auth.users(id);
+
+-- ---------------------------------------------------------------
+-- 5. RPC: admin_verify_facility
 -- ---------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.admin_verify_facility(
   p_facility_id uuid,
@@ -70,6 +82,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_before jsonb;
+  v_after  jsonb;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
@@ -92,13 +105,25 @@ BEGIN
       verified_by = auth.uid()
   WHERE id = p_facility_id;
 
-  INSERT INTO admin_audit_logs (actor_user_id, action_type, target_table, target_id, facility_id, before_state, notes)
-  VALUES (auth.uid(), 'verify_facility', 'facilities', p_facility_id, p_facility_id, v_before, p_notes);
+  SELECT to_jsonb(f) INTO v_after FROM facilities f WHERE id = p_facility_id;
+
+  INSERT INTO admin_audit_logs
+    (actor_user_id, action_type, target_table, target_id, facility_id, before_state, after_state, notes)
+  VALUES
+    (auth.uid(), 'verify_facility', 'facilities', p_facility_id, p_facility_id, v_before, v_after, p_notes);
 END;
 $$;
 
 -- ---------------------------------------------------------------
--- 5. RPC: admin_suspend_facility  (with cascade)
+-- 6. RPC: admin_suspend_facility  (with cascade)
+--
+-- Suspension policy:
+--   - Blocks if facility has active OUTBOUND transfers (supplier role).
+--   - Cancels pending INBOUND transfers (requester role).
+--   - Suppresses facility inventory via network_suppressed = true.
+--     is_active is NOT touched — records are preserved intact.
+--   - The medicine_search RPC must exclude rows where
+--     inventory_items.network_suppressed = true.
 -- ---------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.admin_suspend_facility(
   p_facility_id uuid,
@@ -110,8 +135,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_before       jsonb;
-  v_active_count int;
+  v_before            jsonb;
+  v_after             jsonb;
+  v_active_count      int;
+  v_suppressed_count  int;
+  v_cancelled_count   int;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
   IF NOT EXISTS (
@@ -121,7 +149,7 @@ BEGIN
   SELECT to_jsonb(f) INTO v_before FROM facilities f WHERE id = p_facility_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'Facility not found'; END IF;
 
-  -- Block suspension if facility has active outbound (supplier) transfers
+  -- Block if facility has active outbound (supplier) transfers
   SELECT COUNT(*) INTO v_active_count
   FROM transfer_requests
   WHERE supplying_facility_id = p_facility_id
@@ -142,10 +170,17 @@ BEGIN
   WHERE requesting_facility_id = p_facility_id
     AND status IN ('pending', 'approved');
 
-  -- Suppress all active inventory from network search
+  GET DIAGNOSTICS v_cancelled_count = ROW_COUNT;
+
+  -- Suppress inventory from network search.
+  -- is_active is deliberately left unchanged — records are preserved.
   UPDATE inventory_items
-  SET is_active = false
-  WHERE facility_id = p_facility_id AND is_active = true;
+  SET network_suppressed = true
+  WHERE facility_id = p_facility_id
+    AND is_active = true
+    AND network_suppressed = false;
+
+  GET DIAGNOSTICS v_suppressed_count = ROW_COUNT;
 
   -- Suspend the facility
   UPDATE facilities
@@ -156,13 +191,23 @@ BEGIN
       suspension_reason = p_reason
   WHERE id = p_facility_id;
 
-  INSERT INTO admin_audit_logs (actor_user_id, action_type, target_table, target_id, facility_id, before_state, notes)
-  VALUES (auth.uid(), 'suspend_facility', 'facilities', p_facility_id, p_facility_id, v_before, p_reason);
+  SELECT to_jsonb(f) INTO v_after FROM facilities f WHERE id = p_facility_id;
+
+  INSERT INTO admin_audit_logs
+    (actor_user_id, action_type, target_table, target_id, facility_id, before_state, after_state, notes)
+  VALUES (
+    auth.uid(), 'suspend_facility', 'facilities', p_facility_id, p_facility_id,
+    v_before,
+    v_after,
+    p_reason ||
+    ' | transfers_cancelled=' || v_cancelled_count ||
+    ' | inventory_suppressed=' || v_suppressed_count
+  );
 END;
 $$;
 
 -- ---------------------------------------------------------------
--- 6. RPC: admin_review_inventory_item  (clear a flagged batch)
+-- 7. RPC: admin_review_inventory_item  (clear a flagged batch)
 -- ---------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.admin_review_inventory_item(
   p_item_id uuid,
@@ -175,6 +220,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_before      jsonb;
+  v_after       jsonb;
   v_facility_id uuid;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
@@ -191,13 +237,17 @@ BEGIN
       admin_reviewed_by = auth.uid()
   WHERE id = p_item_id;
 
-  INSERT INTO admin_audit_logs (actor_user_id, action_type, target_table, target_id, facility_id, before_state, notes)
-  VALUES (auth.uid(), 'review_inventory_item', 'inventory_items', p_item_id, v_facility_id, v_before, p_notes);
+  SELECT to_jsonb(i) INTO v_after FROM inventory_items i WHERE id = p_item_id;
+
+  INSERT INTO admin_audit_logs
+    (actor_user_id, action_type, target_table, target_id, facility_id, before_state, after_state, notes)
+  VALUES
+    (auth.uid(), 'review_inventory_item', 'inventory_items', p_item_id, v_facility_id, v_before, v_after, p_notes);
 END;
 $$;
 
 -- ---------------------------------------------------------------
--- 7. RPC: admin_remove_inventory_item
+-- 8. RPC: admin_remove_inventory_item
 -- ---------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.admin_remove_inventory_item(
   p_item_id uuid,
@@ -210,6 +260,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_before      jsonb;
+  v_after       jsonb;
   v_facility_id uuid;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
@@ -228,13 +279,17 @@ BEGIN
       admin_remove_reason = p_reason
   WHERE id = p_item_id;
 
-  INSERT INTO admin_audit_logs (actor_user_id, action_type, target_table, target_id, facility_id, before_state, notes)
-  VALUES (auth.uid(), 'remove_inventory_item', 'inventory_items', p_item_id, v_facility_id, v_before, p_reason);
+  SELECT to_jsonb(i) INTO v_after FROM inventory_items i WHERE id = p_item_id;
+
+  INSERT INTO admin_audit_logs
+    (actor_user_id, action_type, target_table, target_id, facility_id, before_state, after_state, notes)
+  VALUES
+    (auth.uid(), 'remove_inventory_item', 'inventory_items', p_item_id, v_facility_id, v_before, v_after, p_reason);
 END;
 $$;
 
 -- ---------------------------------------------------------------
--- 8. RPC: admin_resolve_dispute
+-- 9. RPC: admin_resolve_dispute
 -- ---------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.admin_resolve_dispute(
   p_request_id uuid,
@@ -248,6 +303,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_before      jsonb;
+  v_after       jsonb;
   v_new_status  text;
   v_facility_id uuid;
 BEGIN
@@ -273,17 +329,20 @@ BEGIN
       fulfilled_at = CASE WHEN v_new_status = 'fulfilled' THEN now() ELSE fulfilled_at END
   WHERE id = p_request_id;
 
-  INSERT INTO admin_audit_logs (actor_user_id, action_type, target_table, target_id, facility_id, before_state, notes)
+  SELECT to_jsonb(r) INTO v_after FROM transfer_requests r WHERE id = p_request_id;
+
+  INSERT INTO admin_audit_logs
+    (actor_user_id, action_type, target_table, target_id, facility_id, before_state, after_state, notes)
   VALUES (
     auth.uid(), 'resolve_dispute', 'transfer_requests', p_request_id, v_facility_id,
-    v_before,
+    v_before, v_after,
     p_action || COALESCE(': ' || p_notes, '')
   );
 END;
 $$;
 
 -- ---------------------------------------------------------------
--- 9. RPC: admin_resolve_batch_alert
+-- 10. RPC: admin_resolve_batch_alert
 -- ---------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.admin_resolve_batch_alert(
   p_alert_id uuid,
@@ -296,6 +355,7 @@ SET search_path = public
 AS $$
 DECLARE
   v_before jsonb;
+  v_after  jsonb;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
   IF NOT EXISTS (
@@ -307,16 +367,21 @@ BEGIN
 
   UPDATE batch_alerts
   SET status      = 'resolved',
-      resolved_at = now()
+      resolved_at = now(),
+      resolved_by = auth.uid()
   WHERE id = p_alert_id;
 
-  INSERT INTO admin_audit_logs (actor_user_id, action_type, target_table, target_id, before_state, notes)
-  VALUES (auth.uid(), 'resolve_batch_alert', 'batch_alerts', p_alert_id, v_before, p_notes);
+  SELECT to_jsonb(a) INTO v_after FROM batch_alerts a WHERE id = p_alert_id;
+
+  INSERT INTO admin_audit_logs
+    (actor_user_id, action_type, target_table, target_id, before_state, after_state, notes)
+  VALUES
+    (auth.uid(), 'resolve_batch_alert', 'batch_alerts', p_alert_id, v_before, v_after, p_notes);
 END;
 $$;
 
 -- ---------------------------------------------------------------
--- 10. Grant execute to authenticated role
+-- 11. Grant execute to authenticated role
 --     (each RPC validates system_admin internally)
 -- ---------------------------------------------------------------
 GRANT EXECUTE ON FUNCTION public.admin_verify_facility(uuid, text)         TO authenticated;

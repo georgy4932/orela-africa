@@ -51,7 +51,13 @@ export default function AdminPage() {
   async function loadAlerts() {
     const { data } = await supabase
       .from('batch_alerts')
-      .select('*, medicines(generic_name)')
+      .select(`
+        id, alert_reference, title, medicine_name_raw, batch_numbers,
+        manufacturer, alert_type, severity, source, issuing_authority,
+        description, recommended_action, status, issued_at, created_at,
+        resolved_at, public_visible,
+        medicines(generic_name)
+      `)
       .order('created_at', { ascending: false })
     setAlerts(data ?? [])
   }
