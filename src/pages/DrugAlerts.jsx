@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth }  from '../hooks/useAuth'
+import { PUBLIC_NG_URL } from '../lib/appUrl'
 
 const SEV_COLOR = { critical: '#dc2626', urgent: '#d97706', routine: '#19c2b5' }
 const SEV_BG    = { critical: 'rgba(220,38,38,0.08)', urgent: 'rgba(217,119,6,0.08)', routine: 'rgba(25,194,181,0.08)' }
@@ -73,6 +74,15 @@ export default function DrugAlertsPage() {
             Regulatory alerts matched to your facility's inventory. Affected stock is removed from network search until you confirm action taken.
           </p>
         </div>
+        <a
+          href={`${PUBLIC_NG_URL}/alerts`}
+          target="_blank"
+          rel="noreferrer"
+          className="btn btn-ghost btn-sm"
+          style={{ flexShrink: 0 }}
+        >
+          View public alerts ↗
+        </a>
       </div>
 
       {/* Pending banner */}
@@ -305,7 +315,8 @@ export default function DrugAlertsPage() {
 
       {/* Info footer */}
       <div style={{ marginTop: 32, padding: '14px 18px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.65 }}>
-        <strong style={{ color: 'var(--text-secondary)' }}>About drug safety alerts:</strong> Alerts are published by Orela in coordination with NAFDAC. When an alert matches a batch number in your inventory, the affected stock is automatically hidden from the network search as a precautionary measure. You must confirm the action taken to restore visibility or permanently remove the stock from the network.
+        <strong style={{ color: 'var(--text-secondary)' }}>About drug safety alerts:</strong> Alerts are published by Orela in coordination with NAFDAC. When an alert matches a batch number in your inventory, the affected stock is automatically hidden from the network search as a precautionary measure. You must confirm the action taken to restore visibility or permanently remove the stock from the network.{' '}
+        <a href={`${PUBLIC_NG_URL}/alerts`} target="_blank" rel="noreferrer" style={{ color: '#19c2b5' }}>View public alert bulletin ↗</a>
       </div>
     </div>
   )

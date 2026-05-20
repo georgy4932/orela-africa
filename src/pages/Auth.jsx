@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../lib/supabase'
 import { InlineError } from '../components/shared'
+
+const RESET_REDIRECT = 'https://orela.africa/ng/reset-password'
 
 export default function AuthPage() {
   const [mode,     setMode]     = useState('signin')
@@ -15,6 +18,17 @@ export default function AuthPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null); setSuccess(null); setLoading(true)
+
+    if (mode === 'forgot') {
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: RESET_REDIRECT,
+      })
+      setLoading(false)
+      if (err) setError(err.message)
+      else setSuccess('If an account exists for that email, a reset link has been sent. Check your inbox.')
+      return
+    }
+
     if (mode === 'signin') {
       const err = await signIn(email, password)
       if (err) setError(err.message)
@@ -27,7 +41,11 @@ export default function AuthPage() {
     setLoading(false)
   }
 
-  function switchMode(m) { setMode(m); setError(null); setSuccess(null) }
+  function switchMode(m) {
+    setMode(m); setError(null); setSuccess(null); setPassword('')
+  }
+
+  const isForgot = mode === 'forgot'
 
   return (
     <div className="auth-layout">
@@ -47,12 +65,14 @@ export default function AuthPage() {
         {/* Card */}
         <div className="auth-surface">
           <div className="auth-title">
-            {mode === 'signin' ? 'Welcome back' : 'Create your account'}
+            {isForgot ? 'Reset your password' : mode === 'signin' ? 'Welcome back' : 'Create your account'}
           </div>
           <div className="auth-subtitle">
-            {mode === 'signin'
-              ? 'Sign in to access your facility command centre.'
-              : 'Set up your facility and start tracking medicine availability.'}
+            {isForgot
+              ? 'Enter your email and we\'ll send you a reset link.'
+              : mode === 'signin'
+                ? 'Sign in to access your facility command centre.'
+                : 'Set up your facility and start tracking medicine availability.'}
           </div>
 
           {error   && <InlineError message={error} />}
@@ -78,25 +98,42 @@ export default function AuthPage() {
                 onChange={e => setEmail(e.target.value)} required autoComplete="email" />
             </div>
 
-            <div className="field">
-              <label>Password</label>
-              <input type="password" placeholder="••••••••" value={password}
-                onChange={e => setPassword(e.target.value)} required minLength={8}
-                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
-            </div>
+            {!isForgot && (
+              <div className="field">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+                  <label style={{ margin: 0 }}>Password</label>
+                  {mode === 'signin' && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode('forgot')}
+                      style={{ fontSize: 11, color: 'var(--primary)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'none' }}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <input type="password" placeholder="••••••••" value={password}
+                  onChange={e => setPassword(e.target.value)} required minLength={8}
+                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
+              </div>
+            )}
 
             <button type="submit" className="btn btn-primary btn-full btn-lg"
               disabled={loading} style={{ marginTop: 2 }}>
               {loading
-                ? <><div className="spinner spinner-sm" style={{borderTopColor:'#07111f'}}/> Signing in…</>
-                : mode === 'signin' ? 'Sign in' : 'Create account'}
+                ? <><div className="spinner spinner-sm" style={{borderTopColor:'#07111f'}}/>{' '}
+                    {isForgot ? 'Sending…' : mode === 'signin' ? 'Signing in…' : 'Creating account…'}</>
+                : isForgot ? 'Send reset link'
+                  : mode === 'signin' ? 'Sign in' : 'Create account'}
             </button>
           </form>
 
           <div className="auth-switch">
-            {mode === 'signin'
-              ? <>No account?{' '}<button onClick={() => switchMode('signup')}>Sign up</button></>
-              : <>Have an account?{' '}<button onClick={() => switchMode('signin')}>Sign in</button></>
+            {isForgot
+              ? <><button onClick={() => switchMode('signin')}>← Back to sign in</button></>
+              : mode === 'signin'
+                ? <>No account?{' '}<button onClick={() => switchMode('signup')}>Sign up</button></>
+                : <>Have an account?{' '}<button onClick={() => switchMode('signin')}>Sign in</button></>
             }
           </div>
         </div>
