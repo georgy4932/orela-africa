@@ -14,6 +14,11 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "app.orela.africa" }],
+      "destination": "/ng/index.html"
+    },
     { "source": "/ng/:path*", "destination": "/ng/index.html" },
     { "source": "/ng", "destination": "/ng/index.html" },
     { "source": "/", "destination": "/orela-landing.html" }

@@ -14,3 +14,8 @@ const APP_URL = configured
 export function appUrl(path) {
   return APP_URL + path
 }
+
+// True when running on the authenticated app subdomain.
+// Used to set basename="/" and redirect / → /auth instead of showing LandingPage.
+export const IS_APP_HOST =
+  typeof window !== 'undefined' && window.location.hostname === 'app.orela.africa'

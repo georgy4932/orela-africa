@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+import { IS_APP_HOST } from './lib/appUrl'
 
 import AdminPage     from './pages/Admin'
 import PrivacyPage   from './pages/Privacy'
@@ -67,7 +68,9 @@ function AppRoutes() {
             ? isSysAdmin
               ? <Navigate to="/admin" replace />
               : <Navigate to={facility ? '/dashboard' : '/onboarding'} replace />
-            : <LandingPage />
+            : IS_APP_HOST
+              ? <Navigate to="/auth" replace />
+              : <LandingPage />
         }
       />
 
