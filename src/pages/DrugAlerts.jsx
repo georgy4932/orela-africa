@@ -31,7 +31,9 @@ export default function DrugAlertsPage() {
     const { data } = await supabase
       .from('alert_facility_responses')
       .select(`
-        *,
+        id, facility_id, inventory_item_id, matched_batch_number,
+        units_at_time_of_alert, network_suppressed, response_status,
+        responded_at, notes, created_at,
         batch_alerts (
           title, severity, alert_type, alert_reference,
           description, recommended_action, batch_numbers,

@@ -51,7 +51,16 @@ export default function DashboardPage() {
     if (!facilityId) return
     const { data } = await supabase
       .from('alert_facility_responses')
-      .select('*, batch_alerts(title, severity, alert_type, alert_reference, description, recommended_action, batch_numbers, source, issuing_authority)')
+      .select(`
+        id, facility_id, inventory_item_id, matched_batch_number,
+        units_at_time_of_alert, network_suppressed, response_status,
+        responded_at, notes, created_at,
+        batch_alerts(
+          title, severity, alert_type, alert_reference,
+          description, recommended_action, batch_numbers,
+          source, issuing_authority
+        )
+      `)
       .eq('facility_id', facilityId)
       .eq('response_status', 'pending')
       .order('created_at', { ascending: false })
@@ -61,7 +70,7 @@ export default function DashboardPage() {
   async function loadAlerts() {
     const { data } = await supabase
       .from('stock_alerts')
-      .select('*, medicines(generic_name)')
+      .select('id, alert_type, status, message, created_at, medicines(generic_name)')
       .eq('facility_id', facilityId).eq('status', 'active')
       .order('created_at', { ascending: false }).limit(5)
     setAlerts(data ?? [])
