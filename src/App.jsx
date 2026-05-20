@@ -8,6 +8,7 @@ import StatusPage    from './pages/Status'
 import LandingPage    from './pages/Landing'
 import DocsPage       from './pages/Docs'
 import AuthPage       from './pages/Auth'
+import ResetPasswordPage from './pages/ResetPassword'
 import OnboardingPage from './pages/Onboarding'
 import AppShell       from './components/layout/AppShell'
 import DashboardPage  from './pages/Dashboard'
@@ -54,11 +55,12 @@ function AppRoutes() {
       {/* Admin panel — system_admin only */}
       <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
 
-      {/* Public docs page — no auth required */}
-      <Route path="/docs"    element={<DocsPage />} />
-      <Route path="/privacy" element={<PrivacyPage />} />
+      {/* Public pages — no auth required */}
+      <Route path="/docs"            element={<DocsPage />} />
+      <Route path="/privacy"         element={<PrivacyPage />} />
       <Route path="/status"          element={<StatusPage />} />
       <Route path="/medicine-alerts" element={<MedicineAlertsPage />} />
+      <Route path="/reset-password"  element={<ResetPasswordPage />} />
 
       {/* Public landing page — no auth required */}
       <Route
