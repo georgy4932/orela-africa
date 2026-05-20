@@ -19,7 +19,13 @@ export default function AlertsPage() {
     async function load() {
       const { data } = await supabase
         .from('batch_alerts')
-        .select('*, medicines(generic_name, strength, dosage_form)')
+        .select(`
+          id, title, medicine_name_raw, batch_numbers, manufacturer,
+          alert_reference, severity, alert_type, status,
+          issued_at, source, issuing_authority,
+          description, recommended_action, risk_to_patients, expires_at,
+          medicines(generic_name, strength, dosage_form)
+        `)
         .eq('public_visible', true)
         .neq('status', 'resolved')
         .order('issued_at', { ascending: false })

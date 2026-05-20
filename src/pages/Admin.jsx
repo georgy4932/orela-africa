@@ -70,7 +70,6 @@ export default function AdminPage() {
   }
 
   async function loadFlaggedInventory() {
-    // Load batches over the quantity threshold that haven't been approved yet
     const { data } = await supabase
       .from('inventory_items')
       .select(`
@@ -80,6 +79,7 @@ export default function AdminPage() {
       `)
       .gte('quantity_available', FLAG_QTY_THRESHOLD)
       .eq('is_active', true)
+      .is('admin_reviewed_at', null)
       .order('quantity_available', { ascending: false })
       .limit(50)
     setFlagged(data ?? [])
@@ -106,10 +106,7 @@ export default function AdminPage() {
 
   async function verifyFacility(id) {
     setActing(id)
-    const { error } = await supabase
-      .from('facilities')
-      .update({ is_verified: true })
-      .eq('id', id)
+    const { error } = await supabase.rpc('admin_verify_facility', { p_facility_id: id })
     if (!error) { showToast('Facility verified and added to the network'); await loadFacilities() }
     else showToast('Failed to verify: ' + error.message, 'error')
     setActing(null)
@@ -117,10 +114,10 @@ export default function AdminPage() {
 
   async function suspendFacility(id) {
     setActing(id)
-    const { error } = await supabase
-      .from('facilities')
-      .update({ is_verified: false, is_active: false })
-      .eq('id', id)
+    const { error } = await supabase.rpc('admin_suspend_facility', {
+      p_facility_id: id,
+      p_reason: 'Suspended by admin',
+    })
     if (!error) { showToast('Facility suspended and removed from network'); await loadFacilities() }
     else showToast('Failed to suspend: ' + error.message, 'error')
     setActing(null)
@@ -128,17 +125,18 @@ export default function AdminPage() {
 
   async function approveInventory(id) {
     setActing(id)
-    // No special flag field yet — just acknowledge in UI. Future: add admin_approved bool
-    showToast('Batch reviewed and cleared')
+    const { error } = await supabase.rpc('admin_review_inventory_item', { p_item_id: id })
+    if (!error) { showToast('Batch reviewed and cleared'); await loadFlaggedInventory() }
+    else showToast('Failed to clear batch: ' + error.message, 'error')
     setActing(null)
   }
 
   async function removeInventory(id) {
     setActing(id)
-    const { error } = await supabase
-      .from('inventory_items')
-      .update({ is_active: false })
-      .eq('id', id)
+    const { error } = await supabase.rpc('admin_remove_inventory_item', {
+      p_item_id: id,
+      p_reason: 'Removed by admin review',
+    })
     if (!error) { showToast('Batch removed from network'); await loadFlaggedInventory() }
     else showToast('Failed to remove: ' + error.message, 'error')
     setActing(null)
@@ -146,14 +144,20 @@ export default function AdminPage() {
 
   async function resolveDispute(id, action) {
     setActing(id)
-    const newStatus = action === 'resolve' ? 'fulfilled' : 'cancelled'
-    const { error } = await supabase
-      .from('transfer_requests')
-      .update({ status: newStatus, notes: `Dispute resolved by admin: marked ${newStatus}` })
-      .eq('id', id)
-    if (!error) { showToast(`Dispute resolved — marked as ${newStatus}`); await loadDisputes() }
+    const { error } = await supabase.rpc('admin_resolve_dispute', {
+      p_request_id: id,
+      p_action: action,
+    })
+    const label = action === 'resolve' ? 'fulfilled' : 'cancelled'
+    if (!error) { showToast(`Dispute resolved — marked as ${label}`); await loadDisputes() }
     else showToast('Failed: ' + error.message, 'error')
     setActing(null)
+  }
+
+  async function updatePackSizes(id, sizes) {
+    const { error } = await supabase.from('medicines').update({ standard_pack_sizes: sizes }).eq('id', id)
+    if (!error) { showToast('Pack sizes updated'); await loadMedicines() }
+    else showToast('Failed: ' + error.message, 'error')
   }
 
   const pending   = facilities.filter(f => !f.is_verified && f.is_active !== false)
@@ -457,7 +461,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {medicines.map(m => (
-                      <MedicineRow key={m.id} medicine={m} onUpdate={updateNafdac} />
+                      <MedicineRow key={m.id} medicine={m} onUpdate={updateNafdac} onPackSizeUpdate={updatePackSizes} />
                     ))}
                   </tbody>
                 </table>
@@ -494,8 +498,9 @@ export default function AdminPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {alerts.map(alert => (
                   <AlertCard key={alert.id} alert={alert} onResolve={async (id) => {
-                    await supabase.from('batch_alerts').update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', id)
-                    loadAlerts()
+                    const { error } = await supabase.rpc('admin_resolve_batch_alert', { p_alert_id: id })
+                    if (error) showToast('Failed to resolve alert: ' + error.message, 'error')
+                    else loadAlerts()
                   }} />
                 ))}
               </div>
@@ -753,7 +758,7 @@ function PackSizesCell({ medicine: m, onSave }) {
   )
 }
 
-function MedicineRow({ medicine: m, onUpdate }) {
+function MedicineRow({ medicine: m, onUpdate, onPackSizeUpdate }) {
   const [editing, setEditing] = useState(false)
   const [val, setVal]         = useState(m.nafdac_reg_number ?? '')
   const [saving, setSaving]   = useState(false)
@@ -801,11 +806,7 @@ function MedicineRow({ medicine: m, onUpdate }) {
         )}
       </td>
       <td>
-        <PackSizesCell medicine={m} onSave={async (id, sizes) => {
-          const { error } = await supabase.from('medicines').update({ standard_pack_sizes: sizes }).eq('id', id)
-          if (!error) showToast('Pack sizes updated')
-          else showToast('Failed: ' + error.message, 'error')
-        }} />
+        <PackSizesCell medicine={m} onSave={onPackSizeUpdate} />
       </td>
       <td>{m.essential_medicine ? <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>✓ Essential</span> : <span style={{ fontSize: 11, color: 'var(--text-disabled)' }}>—</span>}</td>
       <td><span style={{ fontSize: 11, color: m.is_active ? 'var(--success)' : 'var(--text-disabled)' }}>{m.is_active ? 'Active' : 'Inactive'}</span></td>
