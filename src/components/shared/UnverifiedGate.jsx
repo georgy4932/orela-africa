@@ -1,7 +1,7 @@
 // src/components/shared/UnverifiedGate.jsx
 // Shown on restricted pages when facility is not yet verified
 
-import { appUrl } from '../../lib/appUrl'
+import { Link } from 'react-router-dom'
 
 export default function UnverifiedGate({ page, reason }) {
   return (
@@ -87,7 +87,7 @@ export default function UnverifiedGate({ page, reason }) {
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
               <span style={{ color: 'var(--primary)', flexShrink: 0, marginTop: 1 }}>2.</span>
-              Make sure your registration number is added in <a href={appUrl('/settings')} style={{ color: 'var(--primary)' }}>Settings → Network Identity</a>
+              Make sure your registration number is added in <Link to="/settings" style={{ color: 'var(--primary)' }}>Settings → Network Identity</Link>
             </div>
           </div>
         </div>
@@ -108,11 +108,11 @@ export default function UnverifiedGate({ page, reason }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
-            { label: 'Add your inventory', desc: 'Stock you add now will be published to the network immediately after verification', href: appUrl('/inventory') },
-            { label: 'Complete your profile', desc: 'Ensure your registration number and facility details are accurate', href: appUrl('/settings') },
-            { label: 'Add your team', desc: 'Invite staff members so they are ready when the network activates', href: appUrl('/staff') },
+            { label: 'Add your inventory', desc: 'Stock you add now will be published to the network immediately after verification', to: '/inventory' },
+            { label: 'Complete your profile', desc: 'Ensure your registration number and facility details are accurate', to: '/settings' },
+            { label: 'Add your team', desc: 'Invite staff members so they are ready when the network activates', to: '/staff' },
           ].map(item => (
-            <a key={item.href} href={item.href} style={{
+            <Link key={item.to} to={item.to} style={{
               display: 'flex', alignItems: 'flex-start', gap: 10,
               padding: '8px 10px', borderRadius: 'var(--r)',
               background: 'var(--bg-primary)',
@@ -130,7 +130,7 @@ export default function UnverifiedGate({ page, reason }) {
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{item.label}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>{item.desc}</div>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </div>
