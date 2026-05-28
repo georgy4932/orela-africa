@@ -365,7 +365,13 @@ function NewTransferModal({ facilityId, prefill, onClose, onSuccess }) {
       {prefill && (
         <div className="inline-alert alert-info">
           <span className="inline-alert-icon">ℹ</span>
-          <span>Requesting from <strong>{prefill.supplying_name}</strong></span>
+          <span>
+            {prefill.supplying_name
+              ? <>Requesting from <strong>{prefill.supplying_name}</strong></>
+              : prefill.medicine_name
+                ? <>Finding stock for <strong>{prefill.medicine_name}</strong> — select a facility below</>
+                : 'Select the medicine and a supplying facility'}
+          </span>
         </div>
       )}
       {duplicateWarning && (
@@ -665,6 +671,7 @@ function ActionModal({ action: { type, transfer }, facilityId, onClose, onSucces
             <div className="field">
               <label>Quantity to approve *</label>
               <input type="number" required min={1} max={transfer.quantity_requested}
+                inputMode="numeric" pattern="[0-9]*"
                 value={f.quantity} onChange={e => setF(p => ({ ...p, quantity: e.target.value }))} />
               <div className="field-hint">Max: {transfer.quantity_requested} units requested</div>
             </div>
@@ -675,6 +682,7 @@ function ActionModal({ action: { type, transfer }, facilityId, onClose, onSucces
           <div className="field">
             <label>Quantity actually received *</label>
             <input type="number" required min={1} max={transfer.quantity_approved}
+              inputMode="numeric" pattern="[0-9]*"
               value={f.quantity} onChange={e => setF(p => ({ ...p, quantity: e.target.value }))} />
             <div className="field-hint">
               Approved: {fmtNumber(transfer.quantity_approved)} units — adjust down if partial delivery
