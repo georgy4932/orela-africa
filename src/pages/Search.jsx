@@ -29,17 +29,63 @@ export default function SearchPage() {
     e?.preventDefault()
     if (!query.trim() && !state.trim() && !city.trim()) return
     setLoading(true); setSearched(true); setError(null)
-    const { data, error: rpcError } = await supabase.rpc('medicine_search', {
-      p_query:       query   || null,
-      p_country:     country || null,
-      p_state:       state   || null,
-      p_city:        city    || null,
-      p_dosage_form: dosage  || null,
-      p_limit:       50,
-      p_offset:      0,
-    })
-    if (rpcError) setError(rpcError.message)
-    setResults(data ?? [])
+
+    // Query medicine_availability_view directly — the live view has per-batch
+    // rows (quantity_available, expiry_date, brand_names, etc.) not pre-aggregated
+    // totals, so the medicine_search RPC which references those aggregated column
+    // names fails against the live DB. We aggregate here instead.
+    let q = supabase
+      .from('medicine_availability_view')
+      .select('facility_id,facility_name,facility_type,city,state_province,medicine_id,generic_name,brand_names,dosage_form,strength,dispensing_unit,quantity_available,expiry_date')
+      .gt('quantity_available', 0)
+      .limit(500)
+
+    if (query.trim())  q = q.ilike('generic_name', `%${query.trim()}%`)
+    if (state.trim())  q = q.ilike('state_province', `%${state.trim()}%`)
+    if (city.trim())   q = q.ilike('city', `%${city.trim()}%`)
+    if (dosage)        q = q.eq('dosage_form', dosage)
+
+    const { data, error: viewErr } = await q
+    if (viewErr) { setError(viewErr.message); setResults([]); setLoading(false); return }
+
+    // Aggregate per-batch rows → one row per (facility × medicine)
+    // to match the shape ResultTable expects: total_available, batch_count,
+    // earliest_expiry_date, brand_name, facility_is_verified
+    const byKey = {}
+    for (const row of (data ?? [])) {
+      const key = `${row.facility_id}:${row.medicine_id}`
+      if (!byKey[key]) {
+        byKey[key] = {
+          facility_id:          row.facility_id,
+          facility_name:        row.facility_name,
+          facility_type:        row.facility_type,
+          city:                 row.city,
+          state_province:       row.state_province,
+          medicine_id:          row.medicine_id,
+          generic_name:         row.generic_name,
+          // brand_names may be text[] or text; normalise to a display string
+          brand_name:           Array.isArray(row.brand_names)
+                                  ? (row.brand_names[0] ?? null)
+                                  : (row.brand_names || null),
+          dosage_form:          row.dosage_form,
+          strength:             row.strength,
+          dispensing_unit:      row.dispensing_unit,
+          facility_is_verified: true, // view only surfaces verified facility stock
+          total_available:      0,
+          batch_count:          0,
+          earliest_expiry_date: null,
+        }
+      }
+      byKey[key].total_available += (row.quantity_available ?? 0)
+      byKey[key].batch_count     += 1
+      if (row.expiry_date) {
+        if (!byKey[key].earliest_expiry_date || row.expiry_date < byKey[key].earliest_expiry_date) {
+          byKey[key].earliest_expiry_date = row.expiry_date
+        }
+      }
+    }
+
+    setResults(Object.values(byKey).sort((a, b) => b.total_available - a.total_available))
     setLoading(false)
   }
 
@@ -150,7 +196,7 @@ export default function SearchPage() {
       </div>
 
       {/* Results */}
-      {searched && !loading && results?.length === 0 && (
+      {searched && !loading && !error && results?.length === 0 && (
         <EmptyState
           title="No availability found"
           description="No facilities in the network have this medicine available in the searched area. Try broadening your location or checking an alternative medicine name."
