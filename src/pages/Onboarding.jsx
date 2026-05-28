@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import { InlineError } from '../components/shared'
+import { InlineError, CustomSelect } from '../components/shared'
+import { NIGERIA_STATES, NIGERIA_CITIES } from '../data/nigeria-locations'
 
 const FACILITY_TYPES = [
   { value: 'pharmacy',             label: 'Independent Pharmacy' },
@@ -113,9 +114,11 @@ export default function OnboardingPage() {
                 <div className="grid-2">
                   <div className="field">
                     <label>Facility type *</label>
-                    <select required value={form.facility_type} onChange={e => set('facility_type', e.target.value)}>
-                      {FACILITY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    </select>
+                    <CustomSelect
+                      value={form.facility_type}
+                      onChange={v => set('facility_type', v)}
+                      options={FACILITY_TYPES}
+                    />
                   </div>
                   <div className="field">
                     <label>Registration number *</label>
@@ -149,18 +152,50 @@ export default function OnboardingPage() {
                 </div>
                 <div className="grid-2">
                   <div className="field">
-                    <label>City *</label>
-                    <input required value={form.city} onChange={e => set('city', e.target.value)} />
+                    <label>State / Province *</label>
+                    {form.country === 'NG' ? (
+                      <CustomSelect
+                        value={form.state_province}
+                        onChange={v => setForm(f => ({ ...f, state_province: v, city: '' }))}
+                        options={NIGERIA_STATES}
+                        placeholder="Select state…"
+                        searchable
+                      />
+                    ) : (
+                      <input required value={form.state_province} onChange={e => set('state_province', e.target.value)} />
+                    )}
                   </div>
                   <div className="field">
-                    <label>State / Province *</label>
-                    <input required value={form.state_province} onChange={e => set('state_province', e.target.value)} />
+                    <label>City *</label>
+                    {form.country === 'NG' && form.state_province && NIGERIA_CITIES[form.state_province] ? (
+                      <CustomSelect
+                        value={form.city}
+                        onChange={v => set('city', v)}
+                        options={NIGERIA_CITIES[form.state_province]}
+                        placeholder="Select city…"
+                        searchable
+                      />
+                    ) : (
+                      <input required value={form.city} onChange={e => set('city', e.target.value)}
+                        placeholder={form.country === 'NG' && !form.state_province ? 'Select state first' : ''} />
+                    )}
                   </div>
                 </div>
                 <div className="field" style={{ maxWidth: 200 }}>
-                  <label>Country code *</label>
-                  <input required placeholder="NG" value={form.country} onChange={e => set('country', e.target.value)} />
-                  <div className="field-hint">2-letter ISO code, e.g. NG, GH, KE</div>
+                  <label>Country</label>
+                  <CustomSelect
+                    value={form.country}
+                    onChange={v => setForm(f => ({ ...f, country: v, state_province: '', city: '' }))}
+                    options={[
+                      { value: 'NG', label: 'Nigeria' },
+                      { value: 'GH', label: 'Ghana' },
+                      { value: 'KE', label: 'Kenya' },
+                      { value: 'ZA', label: 'South Africa' },
+                      { value: 'UG', label: 'Uganda' },
+                      { value: 'TZ', label: 'Tanzania' },
+                      { value: 'ET', label: 'Ethiopia' },
+                    ]}
+                  />
                 </div>
               </>
             )}
@@ -175,9 +210,11 @@ export default function OnboardingPage() {
                 <div className="grid-2">
                   <div className="field">
                     <label>Default currency</label>
-                    <select value={form.default_currency} onChange={e => set('default_currency', e.target.value)}>
-                      {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <CustomSelect
+                      value={form.default_currency}
+                      onChange={v => set('default_currency', v)}
+                      options={CURRENCIES.map(c => ({ value: c, label: c }))}
+                    />
                   </div>
                   <div className="field">
                     <label>Near-expiry alert (days)</label>

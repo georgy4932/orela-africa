@@ -6,7 +6,7 @@ import {
   expiryBadgeClass, fmtExpiryLabel, daysUntilExpiry,
   stockStatusClass, stockStatusLabel,
 } from '../utils/formatters'
-import { Modal, InlineError, EmptyState, Badge, SkeletonRow, ContextCard } from '../components/shared'
+import { Modal, InlineError, EmptyState, Badge, SkeletonRow, ContextCard, CustomSelect } from '../components/shared'
 
 // ---------------------------------------------------------------------------
 // GS1 barcode parser — extracts batch number, expiry date, and GTIN
@@ -816,14 +816,15 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
                       style={{width:'100%'}}
                     />
                   </div>
-                  <div style={{minWidth:110}}>
-                    <select value={f.quantity_type} onChange={e => {
-                      const newType = e.target.value
-                      setF(p => ({ ...p, quantity_type: newType, pack_size: '' }))
-                    }}>
-                      <option value="units">Individual units</option>
-                      <option value="packs">Packs</option>
-                    </select>
+                  <div style={{minWidth:130}}>
+                    <CustomSelect
+                      value={f.quantity_type}
+                      onChange={v => setF(p => ({ ...p, quantity_type: v, pack_size: '' }))}
+                      options={[
+                        { value: 'units', label: 'Individual units' },
+                        { value: 'packs', label: 'Packs' },
+                      ]}
+                    />
                   </div>
                 </div>
                 {f.quantity_type === 'packs' && (
@@ -835,22 +836,17 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
                         const sizes = selected?.standard_pack_sizes?.length > 0
                           ? selected.standard_pack_sizes
                           : null
-                        return sizes ? (
-                          <select value={f.pack_size} onChange={e => set('pack_size', e.target.value)}>
-                            <option value="">— Select pack size —</option>
-                            {sizes.map(s => (
-                              <option key={s} value={s}>{s} {f.dispensing_unit}s per pack</option>
-                            ))}
-                            <option value="custom">Other (enter manually)</option>
-                          </select>
-                        ) : (
-                          <select value={f.pack_size} onChange={e => set('pack_size', e.target.value)}>
-                            <option value="">— Select pack size —</option>
-                            {[7,10,14,28,30,56,60,84,100,120,500].map(s => (
-                              <option key={s} value={s}>{s} {f.dispensing_unit}s per pack</option>
-                            ))}
-                            <option value="custom">Other (enter manually)</option>
-                          </select>
+                        const sizeList = sizes ?? [7,10,14,28,30,56,60,84,100,120,500]
+                        return (
+                          <CustomSelect
+                            value={String(f.pack_size)}
+                            onChange={v => set('pack_size', v)}
+                            placeholder="— Select pack size —"
+                            options={[
+                              ...sizeList.map(s => ({ value: String(s), label: `${s} ${f.dispensing_unit}s per pack` })),
+                              { value: 'custom', label: 'Other (enter manually)' },
+                            ]}
+                          />
                         )
                       })()}
                       {String(f.pack_size) === 'custom' && (
@@ -875,17 +871,11 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
                 )}
                 <div style={{marginTop:6}}>
                   <label style={{fontSize:11,marginBottom:4,display:'block'}}>Dispensing unit</label>
-                  <select value={f.dispensing_unit} onChange={e => set('dispensing_unit', e.target.value)}>
-                    <option value="tablet">Tablet</option>
-                    <option value="capsule">Capsule</option>
-                    <option value="vial">Vial</option>
-                    <option value="sachet">Sachet</option>
-                    <option value="bottle">Bottle</option>
-                    <option value="ampoule">Ampoule</option>
-                    <option value="tube">Tube</option>
-                    <option value="patch">Patch</option>
-                    <option value="unit">Unit</option>
-                  </select>
+                  <CustomSelect
+                    value={f.dispensing_unit}
+                    onChange={v => set('dispensing_unit', v)}
+                    options={['tablet','capsule','vial','sachet','bottle','ampoule','tube','patch','unit'].map(u => ({ value: u, label: u.charAt(0).toUpperCase() + u.slice(1) }))}
+                  />
                 </div>
                 <div className="field-hint">Units received — published to availability network</div>
               </div>

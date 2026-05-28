@@ -296,10 +296,13 @@ export default function LandingPage() {
                 <div className="lp-sum-item"><div className="lp-sum-num" style={{color:'#22c55e'}}>Free</div><div className="lp-sum-label">Beta access</div></div>
               </div>
               <div className="lp-divider"></div>
-              <div className="lp-fac-sec-label">Active facilities</div>
-              <div className="lp-fac-row"><div className="lp-fac-dot" style={{background:'#22c55e'}}></div><span className="lp-fac-name">Egomedical · Ikeja</span><span className="lp-fac-chip" style={{background:'rgba(25,194,181,0.1)',color:'#19c2b5'}}>6 batches</span></div>
-              <div className="lp-fac-row"><div className="lp-fac-dot" style={{background:'#f5a524'}}></div><span className="lp-fac-name">Central PHC · Lagos Island</span><span className="lp-fac-chip" style={{background:'rgba(245,165,36,0.1)',color:'#f5a524'}}>Low stock</span></div>
-              <div className="lp-fac-row"><div className="lp-fac-dot" style={{background:'#22c55e'}}></div><span className="lp-fac-name">Lekki Pharmacy · Lekki</span><span className="lp-fac-chip" style={{background:'rgba(34,197,94,0.1)',color:'#22c55e'}}>In stock</span></div>
+              <div className="lp-fac-sec-label">Lagos pilot · founding cohort</div>
+              <div style={{padding:'12px 0',fontSize:12,color:'#4a6d8c',lineHeight:1.6}}>
+                We are onboarding the first verified facilities in Lagos. Registration is open now — no cost during beta.
+              </div>
+              <a href="/ng/auth" style={{display:'inline-flex',alignItems:'center',gap:6,padding:'8px 14px',background:'rgba(25,194,181,0.1)',border:'1px solid rgba(25,194,181,0.2)',borderRadius:5,color:'#19c2b5',fontSize:12,fontWeight:600,textDecoration:'none'}}>
+                Register your facility →
+              </a>
             </div>
           </div>
         </section>
@@ -339,13 +342,36 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="lp-cmd">
-                <div className="lp-cmd-bar"><div className="lp-cmd-dot" style={{background:'#ef4444'}}></div><div className="lp-cmd-dot" style={{background:'#f5a524'}}></div><div className="lp-cmd-dot" style={{background:'#22c55e'}}></div><span className="lp-cmd-url">orela.africa/ng · Command Center</span></div>
+                <div className="lp-cmd-bar"><div className="lp-cmd-dot" style={{background:'#ef4444'}}></div><div className="lp-cmd-dot" style={{background:'#f5a524'}}></div><div className="lp-cmd-dot" style={{background:'#22c55e'}}></div><span className="lp-cmd-url">app.orela.africa · Medicine Network</span></div>
                 <div className="lp-cmd-body">
-                  <div className="lp-cmd-eyebrow">Supply Network · Command Center</div>
-                  <div className="lp-cmd-title">Lagos Region Overview</div>
-                  <div className="lp-cmd-layout">
-                    <div><div className="lp-cmd-col-label">Active facilities</div><div className="lp-cmd-fac-list"><div className="lp-cmd-fac-item"><div className="lp-cmd-fac-dot" style={{background:'#22c55e'}}></div><span className="lp-cmd-fac-name">Egomedical · Ikeja</span><span className="lp-cmd-fac-val">6 batches</span></div><div className="lp-cmd-fac-item"><div className="lp-cmd-fac-dot" style={{background:'#f5a524'}}></div><span className="lp-cmd-fac-name">Central PHC</span><span className="lp-cmd-fac-val">Low stock</span></div><div className="lp-cmd-fac-item"><div className="lp-cmd-fac-dot" style={{background:'#22c55e'}}></div><span className="lp-cmd-fac-name">Lekki Pharmacy</span><span className="lp-cmd-fac-val">In stock</span></div><div className="lp-cmd-fac-item"><div className="lp-cmd-fac-dot" style={{background:'#ef4444'}}></div><span className="lp-cmd-fac-name">Mile 12 Clinic</span><span className="lp-cmd-fac-val">Stockout</span></div></div></div>
-                    <div><div className="lp-cmd-col-label">Key metrics</div><div className="lp-cmd-metrics"><div className="lp-cmd-metric"><div className="lp-cmd-metric-num" style={{color:'#19c2b5'}}>4</div><div className="lp-cmd-metric-label">Facilities online</div></div><div className="lp-cmd-metric"><div className="lp-cmd-metric-num" style={{color:'#f5a524'}}>2</div><div className="lp-cmd-metric-label">Shortage alerts</div></div><div className="lp-cmd-metric"><div className="lp-cmd-metric-num" style={{color:'#8b5cf6'}}>1</div><div className="lp-cmd-metric-label">Active transfers</div></div><div className="lp-cmd-metric"><div className="lp-cmd-metric-num" style={{color:'#22c55e'}}>18</div><div className="lp-cmd-metric-label">Batches published</div></div></div></div>
+                  <div className="lp-cmd-eyebrow">Medicine Network · Real-time search</div>
+                  <div className="lp-cmd-title">Amoxicillin 500mg — Lagos</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
+                    {[
+                      {name:'Hospital Pharmacy · Victoria Island', qty:'240 capsules', exp:'Aug 2026', color:'#22c55e'},
+                      {name:'Independent Pharmacy · Surulere', qty:'80 capsules', exp:'Nov 2025', color:'#f5a524'},
+                      {name:'PHC · Agege', qty:'500 capsules', exp:'Mar 2026', color:'#22c55e'},
+                    ].map((r,i) => (
+                      <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 8px',background:'#0e2038',border:'1px solid #1a3050',borderRadius:4}}>
+                        <div style={{width:5,height:5,borderRadius:'50%',background:r.color,flexShrink:0}}/>
+                        <span style={{fontSize:10,color:'#8bb4d4',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</span>
+                        <span style={{fontFamily:'JetBrains Mono,monospace',fontSize:9,color:'#19c2b5',flexShrink:0}}>{r.qty}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:'flex',gap:6}}>
+                    <div style={{flex:1,background:'#0e2038',border:'1px solid #1a3050',borderRadius:4,padding:'8px 10px'}}>
+                      <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'#19c2b5',marginBottom:2}}>820</div>
+                      <div style={{fontSize:8,color:'#4a6d8c',textTransform:'uppercase',letterSpacing:'0.08em'}}>Units available</div>
+                    </div>
+                    <div style={{flex:1,background:'#0e2038',border:'1px solid #1a3050',borderRadius:4,padding:'8px 10px'}}>
+                      <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'#8b5cf6',marginBottom:2}}>3</div>
+                      <div style={{fontSize:8,color:'#4a6d8c',textTransform:'uppercase',letterSpacing:'0.08em'}}>Nearby sources</div>
+                    </div>
+                    <div style={{flex:1,background:'#0e2038',border:'1px solid #1a3050',borderRadius:4,padding:'8px 10px'}}>
+                      <div style={{fontFamily:'JetBrains Mono,monospace',fontSize:11,color:'#22c55e',marginBottom:2}}>Live</div>
+                      <div style={{fontSize:8,color:'#4a6d8c',textTransform:'uppercase',letterSpacing:'0.08em'}}>Availability</div>
+                    </div>
                   </div>
                 </div>
               </div>
