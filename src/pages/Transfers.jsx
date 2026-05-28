@@ -6,7 +6,7 @@ import {
   fmtDate, fmtRelative, fmtNumber,
   transferStatusClass, transferStatusLabel, urgencyClass,
 } from '../utils/formatters'
-import { Modal, InlineError, EmptyState, Badge, SpinnerCenter, TransferPipeline, ContextCard } from '../components/shared'
+import { Modal, InlineError, EmptyState, Badge, SpinnerCenter, TransferPipeline, ContextCard, CustomSelect } from '../components/shared'
 import UnverifiedGate from '../components/shared/UnverifiedGate'
 
 const TABS = [
@@ -294,18 +294,24 @@ function NewTransferModal({ facilityId, prefill, onClose, onSuccess }) {
       <form id="new-tr-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div className="field">
           <label>Supplying facility *</label>
-          <select required value={f.supplying_facility_id} onChange={e => set('supplying_facility_id', e.target.value)}>
-            <option value="">Select facility from network…</option>
-            {facilities.map(x => <option key={x.id} value={x.id}>{x.name} — {x.city}, {x.country}</option>)}
-          </select>
+          <CustomSelect
+            value={f.supplying_facility_id}
+            onChange={v => set('supplying_facility_id', v)}
+            placeholder="Select facility from network…"
+            options={facilities.map(x => ({ value: x.id, label: `${x.name} — ${x.city}, ${x.country}` }))}
+            searchable={facilities.length > 5}
+          />
           <div className="field-hint">Select a facility you found in the medicine network search</div>
         </div>
         <div className="field">
           <label>Medicine *</label>
-          <select required value={f.medicine_id} onChange={e => set('medicine_id', e.target.value)}>
-            <option value="">Select medicine…</option>
-            {medicines.map(m => <option key={m.id} value={m.id}>{m.generic_name} · {m.strength}</option>)}
-          </select>
+          <CustomSelect
+            value={f.medicine_id}
+            onChange={v => set('medicine_id', v)}
+            placeholder="Select medicine…"
+            options={medicines.map(m => ({ value: m.id, label: `${m.generic_name} · ${m.strength}` }))}
+            searchable
+          />
         </div>
         <div className="grid-2">
           <div className="field">
@@ -314,11 +320,15 @@ function NewTransferModal({ facilityId, prefill, onClose, onSuccess }) {
           </div>
           <div className="field">
             <label>Urgency</label>
-            <select value={f.urgency} onChange={e => set('urgency', e.target.value)}>
-              <option value="normal">Normal</option>
-              <option value="urgent">Urgent — stockout imminent</option>
-              <option value="critical">Critical — patients affected</option>
-            </select>
+            <CustomSelect
+              value={f.urgency}
+              onChange={v => set('urgency', v)}
+              options={[
+                { value: 'normal',   label: 'Normal' },
+                { value: 'urgent',   label: 'Urgent — stockout imminent' },
+                { value: 'critical', label: 'Critical — patients affected' },
+              ]}
+            />
           </div>
         </div>
         <div className="field">
@@ -430,14 +440,15 @@ function ActionModal({ action: { type, transfer }, facilityId, onClose, onSucces
           <>
             <div className="field">
               <label>Select batch to reserve *</label>
-              <select required value={f.inventory_item_id} onChange={e => setF(p => ({ ...p, inventory_item_id: e.target.value }))}>
-                <option value="">Choose batch…</option>
-                {inventoryItems.map(i => (
-                  <option key={i.id} value={i.id}>
-                    Batch {i.batch_number} · {fmtNumber(i.quantity_available - i.quantity_reserved)} available · exp {fmtDate(i.expiry_date)}
-                  </option>
-                ))}
-              </select>
+              <CustomSelect
+                value={f.inventory_item_id}
+                onChange={v => setF(p => ({ ...p, inventory_item_id: v }))}
+                placeholder="Choose batch…"
+                options={inventoryItems.map(i => ({
+                  value: i.id,
+                  label: `Batch ${i.batch_number} · ${fmtNumber(i.quantity_available - i.quantity_reserved)} available · exp ${fmtDate(i.expiry_date)}`,
+                }))}
+              />
             </div>
             <div className="field">
               <label>Quantity to approve *</label>

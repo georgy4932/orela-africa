@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useFacility } from '../hooks/useFacility'
 import { useAuth } from '../hooks/useAuth'
 import { fmtDate, fmtRelative, initials } from '../utils/formatters'
-import { Modal, InlineError, EmptyState, Badge, SpinnerCenter } from '../components/shared'
+import { Modal, InlineError, EmptyState, Badge, SpinnerCenter, CustomSelect } from '../components/shared'
 
 const ROLE_META = {
   pharmacist:      { label: 'Pharmacist',      badge: 'badge-primary', desc: 'Can manage inventory and view transfers' },
@@ -199,22 +199,12 @@ function StaffRow({ member, isAdmin, isSelf, onToggle, onRoleChange }) {
       </td>
       <td>
         {isAdmin && !isSelf ? (
-          <select
+          <CustomSelect
             value={member.role}
-            onChange={e => onRoleChange(e.target.value)}
-            style={{
-              background: 'transparent', border: '1px solid var(--border)',
-              borderRadius: 'var(--r-sm)', color: 'var(--text-secondary)',
-              padding: '3px 22px 3px 7px', fontSize: 11, cursor: 'pointer',
-              appearance: 'none',
-              backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23657386' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
-              backgroundRepeat: 'no-repeat', backgroundPosition: 'right 7px center',
-            }}
-          >
-            {Object.entries(ROLE_META).map(([r, m]) => (
-              <option key={r} value={r}>{m.label}</option>
-            ))}
-          </select>
+            onChange={onRoleChange}
+            options={Object.entries(ROLE_META).map(([r, m]) => ({ value: r, label: m.label }))}
+            style={{ minWidth: 130 }}
+          />
         ) : (
           <Badge className={roleMeta.badge}>{roleMeta.label}</Badge>
         )}
@@ -314,11 +304,11 @@ function InviteModal({ facilityId, onClose, onSuccess }) {
         </div>
         <div className="field">
           <label>Role *</label>
-          <select required value={role} onChange={e => setRole(e.target.value)}>
-            {Object.entries(ROLE_META).map(([r, m]) => (
-              <option key={r} value={r}>{m.label} — {m.desc}</option>
-            ))}
-          </select>
+          <CustomSelect
+            value={role}
+            onChange={setRole}
+            options={Object.entries(ROLE_META).map(([r, m]) => ({ value: r, label: `${m.label} — ${m.desc}` }))}
+          />
         </div>
       </form>
     </Modal>

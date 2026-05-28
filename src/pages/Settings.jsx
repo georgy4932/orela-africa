@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useFacility } from '../hooks/useFacility'
 import { useAuth } from '../hooks/useAuth'
-import { InlineError, InlineSuccess, Badge } from '../components/shared'
+import { InlineError, InlineSuccess, Badge, CustomSelect } from '../components/shared'
 import { fmtDate } from '../utils/formatters'
 
 const FACILITY_TYPES = [
@@ -149,9 +149,12 @@ export default function SettingsPage() {
                     <div className="grid-2">
                       <div className="field">
                         <label>Facility type</label>
-                        <select value={facForm.facility_type} onChange={e => setF('facility_type', e.target.value)} disabled={!isAdmin}>
-                          {FACILITY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                        </select>
+                        <CustomSelect
+                          value={facForm.facility_type}
+                          onChange={v => !isAdmin || setF('facility_type', v)}
+                          options={FACILITY_TYPES}
+                          style={{ opacity: isAdmin ? 1 : 0.5, pointerEvents: isAdmin ? 'auto' : 'none' }}
+                        />
                       </div>
                       <div className="field">
                         <label>Registration number</label>
@@ -212,9 +215,12 @@ export default function SettingsPage() {
                     <div className="form-section-title">Financial</div>
                     <div className="field" style={{ maxWidth: 220 }}>
                       <label>Default currency</label>
-                      <select value={facForm.default_currency} onChange={e => setF('default_currency', e.target.value)} disabled={!isAdmin}>
-                        {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={facForm.default_currency}
+                        onChange={v => !isAdmin || setF('default_currency', v)}
+                        options={CURRENCIES.map(c => ({ value: c, label: c }))}
+                        style={{ opacity: isAdmin ? 1 : 0.5, pointerEvents: isAdmin ? 'auto' : 'none' }}
+                      />
                       <div className="field-hint">Used for pricing displayed in inventory and transfer records</div>
                     </div>
                   </div>

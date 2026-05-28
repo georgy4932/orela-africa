@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFacility } from '../hooks/useFacility'
 import { fmtDate, fmtNumber, facilityTypeLabel } from '../utils/formatters'
-import { EmptyState, Badge } from '../components/shared'
+import { EmptyState, Badge, CustomSelect } from '../components/shared'
 import UnverifiedGate from '../components/shared/UnverifiedGate'
 
 const DOSAGE_FORMS = ['','tablet','capsule','syrup','suspension','injection','infusion','cream','ointment','drops','inhaler','suppository','patch','powder','other']
@@ -102,9 +102,11 @@ export default function SearchPage() {
               </div>
               <div className="field">
                 <label>Dosage form</label>
-                <select value={dosage} onChange={e => setDosage(e.target.value)}>
-                  {DOSAGE_FORMS.map(f => <option key={f} value={f}>{f ? f.charAt(0).toUpperCase() + f.slice(1) : 'Any form'}</option>)}
-                </select>
+                <CustomSelect
+                  value={dosage}
+                  onChange={setDosage}
+                  options={DOSAGE_FORMS.map(f => ({ value: f, label: f ? f.charAt(0).toUpperCase() + f.slice(1) : 'Any form' }))}
+                />
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>

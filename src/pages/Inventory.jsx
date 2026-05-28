@@ -901,16 +901,20 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
             <div className="grid-2">
               <div className="field">
                 <label>Supplier</label>
-                <select value={f.supplier_id} onChange={e => set('supplier_id', e.target.value)}>
-                  <option value="">None / unknown</option>
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                <CustomSelect
+                  value={f.supplier_id}
+                  onChange={v => set('supplier_id', v)}
+                  placeholder="None / unknown"
+                  options={[{ value: '', label: 'None / unknown' }, ...suppliers.map(s => ({ value: s.id, label: s.name }))]}
+                />
               </div>
               <div className="field">
                 <label>Storage condition</label>
-                <select value={f.storage_condition} onChange={e => set('storage_condition', e.target.value)}>
-                  {STORAGE_CONDS.map(c => <option key={c} value={c}>{c.replace(/_/g,' ')}</option>)}
-                </select>
+                <CustomSelect
+                  value={f.storage_condition}
+                  onChange={v => set('storage_condition', v)}
+                  options={STORAGE_CONDS.map(c => ({ value: c, label: c.replace(/_/g, ' ') }))}
+                />
               </div>
             </div>
             <div className="field"><label>Storage location</label><input value={f.storage_location} onChange={e => set('storage_location', e.target.value)} placeholder="e.g. Shelf B2, Cold Room 1" /></div>
@@ -964,9 +968,11 @@ function AdjModal({ item, onClose, onSuccess }) {
       <form id="adj-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div className="field">
           <label>Movement type *</label>
-          <select required value={movType} onChange={e => setMovType(e.target.value)}>
-            {MOVEMENT_TYPES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
+          <CustomSelect
+            value={movType}
+            onChange={setMovType}
+            options={MOVEMENT_TYPES}
+          />
         </div>
         <div className="field">
           <label>Quantity *</label>
@@ -1035,9 +1041,12 @@ function EditModal({ item, isAdmin, suppliers, currency, onClose, onSuccess }) {
         <div className="grid-2">
           <div className="field"><label>Brand name</label><input value={f.brand_name} onChange={e => set('brand_name', e.target.value)} /></div>
           <div className="field"><label>Supplier</label>
-            <select value={f.supplier_id} onChange={e => set('supplier_id', e.target.value)}>
-              <option value="">None</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <CustomSelect
+              value={f.supplier_id}
+              onChange={v => set('supplier_id', v)}
+              placeholder="None"
+              options={[{ value: '', label: 'None' }, ...suppliers.map(s => ({ value: s.id, label: s.name }))]}
+            />
           </div>
         </div>
         <div className="grid-2">
