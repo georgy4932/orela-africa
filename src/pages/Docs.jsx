@@ -202,14 +202,6 @@ export default function DocsPage() {
               <a href="#shortage-signals" className="d-sb-link">Shortage signals</a>
             </div>
             <div className="d-sb-group">
-              <span className="d-sb-label">Technical reference</span>
-              <a href="#architecture" className="d-sb-link">Platform architecture</a>
-              <a href="#database" className="d-sb-link">Database schema</a>
-              <a href="#rpc" className="d-sb-link">RPC functions</a>
-              <a href="#rls" className="d-sb-link">Security & RLS</a>
-              <a href="#webhooks" className="d-sb-link">Webhooks & events</a>
-            </div>
-            <div className="d-sb-group">
               <span className="d-sb-label">Reference</span>
               <a href="#roles" className="d-sb-link">Roles & permissions</a>
               <a href="#facility-types" className="d-sb-link">Facility types</a>
@@ -231,10 +223,9 @@ export default function DocsPage() {
             <div className="d-hero">
               <div className="d-hero-eyebrow">Documentation · v1.0 · Beta</div>
               <h1 className="d-hero-title">Orela Nigeria<br/>Platform Documentation</h1>
-              <p className="d-hero-sub">Complete guide for facility administrators and technical teams. Covers everything from registering a facility to understanding the database architecture and security model.</p>
+              <p className="d-hero-sub">Complete guide for facility administrators. Covers everything from registering your facility to managing inventory, transfers, and supply intelligence.</p>
               <div className="d-audience-tabs">
                 <span className="d-audience-tab facility">🏥 Facility administrators</span>
-                <span className="d-audience-tab technical">⚙ Technical teams</span>
               </div>
             </div>
 
@@ -268,11 +259,7 @@ export default function DocsPage() {
               <div className="d-grid-2">
                 <div className="d-card" style={{borderColor:'rgba(25,194,181,0.2)'}}>
                   <div className="d-card-title" style={{color:'#19c2b5'}}>Facility administrators</div>
-                  <div className="d-card-desc">Pharmacists, hospital pharmacy managers, PHC coordinators, and anyone responsible for registering and operating a facility on the network. Focus on sections: Facility guide, Transfers, Roles.</div>
-                </div>
-                <div className="d-card" style={{borderColor:'rgba(139,92,246,0.2)'}}>
-                  <div className="d-card-title" style={{color:'#8b5cf6'}}>Technical teams</div>
-                  <div className="d-card-desc">Developers and system administrators working with the platform infrastructure. Focus on sections: Architecture, Database schema, RPC functions, Security & RLS, Webhooks.</div>
+                  <div className="d-card-desc">Pharmacists, hospital pharmacy managers, PHC coordinators, and anyone responsible for registering and operating a facility on the network. This guide covers registration, inventory, transfers, alerts, and supply intelligence.</div>
                 </div>
               </div>
             </div>
@@ -317,7 +304,6 @@ export default function DocsPage() {
                 <div className="d-step"><span className="d-step-num">2</span><div><div className="d-step-title">Review results</div><div className="d-step-desc">Results show: available quantity (net of reserved stock), earliest expiry date, number of batches, facility type, location, and verification status. Your own facility's stock appears in a separate section at the top.</div></div></div>
                 <div className="d-step"><span className="d-step-num">3</span><div><div className="d-step-title">Request stock from a result</div><div className="d-step-desc">Click Request stock → on any network result to open the transfer request form, pre-filled with the medicine and supplying facility. Add your quantity, urgency, and reason.</div></div></div>
               </div>
-              <div className="d-note d-note-tip"><span className="d-note-icon">💡</span><span>The search uses the <span className="d-inline-code">medicine_search()</span> RPC which queries the <span className="d-inline-code">medicine_availability_view</span> securely. Never query this view directly — always use the RPC to ensure RLS and data segregation is enforced.</span></div>
             </div>
 
             {/* ALERTS */}
@@ -342,7 +328,7 @@ export default function DocsPage() {
                 <tr><td><span className="d-badge" style={{background:'rgba(25,194,181,0.1)',color:'#19c2b5'}}>Pharmacist</span></td><td>Manage inventory (add, adjust), view and action transfers, search medicine network, view shortage alerts. Cannot manage staff or view cost pricing.</td></tr>
                 <tr><td><span className="d-badge" style={{background:'rgba(139,180,212,0.1)',color:'#8bb4d4'}}>Pharmacy Tech</span></td><td>View inventory, log stock movements (Adjust). Cannot approve transfers, add inventory batches, or manage staff.</td></tr>
               </tbody></table></div>
-              <div className="d-note d-note-warn"><span className="d-note-icon">⚠</span><span>Staff records are facility-scoped. A user can be staff at multiple facilities with different roles at each. The <span className="d-inline-code">is_facility_staff()</span> function checks the currently active facility context.</span></div>
+              <div className="d-note d-note-tip"><span className="d-note-icon">💡</span><span>A user can be staff at multiple facilities with different roles at each.</span></div>
             </div>
 
             {/* SETTINGS */}
@@ -437,109 +423,6 @@ export default function DocsPage() {
               <div className="d-note d-note-warn"><span className="d-note-icon">⚠</span><span>Regional shortage signals require a minimum of 5 active facilities in the same area. This module will show placeholder data until the network reaches that threshold.</span></div>
             </div>
 
-            {/* ARCHITECTURE */}
-            <div className="d-section" id="architecture">
-              <div className="d-section-title"><span className="d-section-badge" style={{background:'rgba(139,92,246,0.1)',color:'#8b5cf6'}}>Technical</span>Platform architecture</div>
-              <p className="d-section-desc">Orela Nigeria is built on a React + Vite frontend with a Supabase backend (PostgreSQL + Auth + RLS + Edge Functions). The frontend is deployed on Vercel with automatic deploys from the main branch.</p>
-              <div className="d-grid-2">
-                <div className="d-card"><div className="d-card-title">Frontend</div><div className="d-card-desc">React 18 + Vite · React Router v6 · No component library (custom CSS design system) · Deployed on Vercel</div></div>
-                <div className="d-card"><div className="d-card-title">Backend</div><div className="d-card-desc">Supabase (PostgreSQL 15) · Row Level Security on all tables · Server-side RPC functions for all mutations · Supabase Auth (email/password)</div></div>
-                <div className="d-card"><div className="d-card-title">Email</div><div className="d-card-desc">Resend API · Supabase Edge Functions (Deno) · Database Webhooks trigger edge functions on table events</div></div>
-                <div className="d-card"><div className="d-card-title">Design system</div><div className="d-card-desc">Single index.css file · CSS custom properties · Inter + JetBrains Mono · Teal (#19c2b5) primary · Dark-first (#07111f background)</div></div>
-              </div>
-            </div>
-
-            {/* DATABASE */}
-            <div className="d-section" id="database">
-              <div className="d-section-title">Database schema</div>
-              <p className="d-section-desc">Core tables and their purpose. All tables have RLS enabled. All mutations go through RPC functions except for settings updates which use direct table access with RLS enforcement.</p>
-              <div className="d-table-wrap"><table className="d-table"><thead><tr><th>Table</th><th>Purpose</th></tr></thead><tbody>
-                <tr><td><span className="d-inline-code">user_profiles</span></td><td>Extends Supabase auth.users with full_name, phone, role, preferred_country</td></tr>
-                <tr><td><span className="d-inline-code">facilities</span></td><td>Facility identity, location, verification status, operational settings</td></tr>
-                <tr><td><span className="d-inline-code">facility_staff</span></td><td>Many-to-many between users and facilities with role assignment</td></tr>
-                <tr><td><span className="d-inline-code">medicines</span></td><td>Network medicine catalog — generic names, dosage forms, essential medicine flag</td></tr>
-                <tr><td><span className="d-inline-code">suppliers</span></td><td>Facility-scoped supplier records — visible only to the owning facility</td></tr>
-                <tr><td><span className="d-inline-code">inventory_items</span></td><td>Batch-level stock records — quantity_available, quantity_reserved, reorder_level, expiry_date</td></tr>
-                <tr><td><span className="d-inline-code">inventory_movements</span></td><td>Immutable audit log of all stock quantity changes</td></tr>
-                <tr><td><span className="d-inline-code">transfer_requests</span></td><td>Transfer lifecycle records — managed exclusively via RPC, never directly updated</td></tr>
-                <tr><td><span className="d-inline-code">stock_alerts</span></td><td>Active and resolved shortage/expiry alerts — generated by database triggers</td></tr>
-                <tr><td><span className="d-inline-code">live_rooms</span></td><td>Reserved for future LiveKit integration (Verbum Gathering architecture pattern)</td></tr>
-              </tbody></table></div>
-              <div className="d-note d-note-warn"><span className="d-note-icon">⚠</span><span>Never query <span className="d-inline-code">medicine_availability_view</span> directly from application code. Always use the <span className="d-inline-code">medicine_search()</span> RPC to ensure RLS and data segregation are enforced.</span></div>
-            </div>
-
-            {/* RPC */}
-            <div className="d-section" id="rpc">
-              <div className="d-section-title">RPC functions</div>
-              <p className="d-section-desc">All data mutations use server-side PostgreSQL functions called via Supabase RPC. These enforce business logic, authorization checks, and atomicity at the database level.</p>
-
-              <div className="d-subsection">
-                <div className="d-subsection-title">Inventory RPCs</div>
-                <div className="d-endpoint"><span className="d-method d-method-post">RPC</span><div><div className="d-endpoint-path">create_inventory_item(p_facility_id, p_medicine_id, p_batch_number, p_expiry_date, p_quantity, p_reorder_level, ...)</div><div className="d-endpoint-desc">Creates a new inventory batch and logs the initial receipt movement. Checks facility staff membership before insert.</div></div></div>
-                <div className="d-endpoint"><span className="d-method d-method-patch">RPC</span><div><div className="d-endpoint-path">update_inventory_quantity(p_inventory_item_id, p_quantity_change, p_movement_type, p_notes)</div><div className="d-endpoint-desc">Adjusts quantity_available and creates an inventory_movements record. Negative values for outbound movements.</div></div></div>
-              </div>
-
-              <div className="d-subsection">
-                <div className="d-subsection-title">Transfer RPCs</div>
-                <div className="d-note d-note-warn"><span className="d-note-icon">⚠</span><span>Never directly UPDATE transfer_requests. All state transitions must go through the appropriate RPC. Direct updates bypass quantity_reserved management and notification triggers.</span></div>
-                <div className="d-endpoint"><span className="d-method d-method-post">RPC</span><div><div className="d-endpoint-path">approve_transfer_request(p_request_id, p_quantity_approved, p_inventory_item_id)</div><div className="d-endpoint-desc">Sets status to approved, increments quantity_reserved on the selected batch. Only callable by supplying facility staff.</div></div></div>
-                <div className="d-endpoint"><span className="d-method d-method-post">RPC</span><div><div className="d-endpoint-path">reject_transfer_request(p_request_id, p_notes)</div><div className="d-endpoint-desc">Sets status to rejected. No quantity changes — stock was not reserved at Pending stage.</div></div></div>
-                <div className="d-endpoint"><span className="d-method d-method-post">RPC</span><div><div className="d-endpoint-path">cancel_transfer_request(p_request_id, p_notes)</div><div className="d-endpoint-desc">Sets status to cancelled. If approved, releases quantity_reserved back to available.</div></div></div>
-                <div className="d-endpoint"><span className="d-method d-method-post">RPC</span><div><div className="d-endpoint-path">mark_transfer_in_transit(p_request_id, p_notes)</div><div className="d-endpoint-desc">Sets status to in_transit. Stock remains reserved. Notifies requesting facility.</div></div></div>
-                <div className="d-endpoint"><span className="d-method d-method-post">RPC</span><div><div className="d-endpoint-path">fulfill_transfer_request(p_request_id, p_quantity_fulfilled, p_notes)</div><div className="d-endpoint-desc">Sets status to fulfilled. Decrements both quantity_available and quantity_reserved by quantity_fulfilled. Logs inventory movement on supplying batch.</div></div></div>
-              </div>
-
-              <div className="d-subsection">
-                <div className="d-subsection-title">Network RPCs</div>
-                <div className="d-endpoint"><span className="d-method d-method-get">RPC</span><div><div className="d-endpoint-path">medicine_search(p_query, p_country, p_state, p_city, p_dosage_form, p_limit, p_offset)</div><div className="d-endpoint-desc">Queries medicine_availability_view with RLS applied. Returns aggregated availability per medicine per facility. Never call the view directly.</div></div></div>
-                <div className="d-endpoint"><span className="d-method d-method-get">RPC</span><div><div className="d-endpoint-path">is_facility_staff(p_user_id, p_facility_id)</div><div className="d-endpoint-desc">Helper function used inside other RPCs to verify the calling user is active staff at the target facility. Returns boolean.</div></div></div>
-              </div>
-            </div>
-
-            {/* RLS */}
-            <div className="d-section" id="rls">
-              <div className="d-section-title">Security &amp; Row Level Security</div>
-              <p className="d-section-desc">All tables have RLS enabled. Policies enforce that users can only read and write data belonging to facilities they are active staff members of.</p>
-              <div className="d-code-label">Key RLS patterns</div>
-              <div className="d-code-block">
-                <span className="cm">-- facility_staff: users can only read their own staff record</span>{'\n'}
-                <span className="kw">CREATE POLICY</span> <span className="str">"Users can read their own staff record"</span>{'\n'}
-                <span className="kw">ON</span> facility_staff <span className="kw">FOR SELECT</span>{'\n'}
-                <span className="kw">USING</span> (user_id = auth.uid());{'\n\n'}
-                <span className="cm">-- inventory_items: staff can only see their facility's stock</span>{'\n'}
-                <span className="kw">CREATE POLICY</span> <span className="str">"Facility staff can manage inventory"</span>{'\n'}
-                <span className="kw">ON</span> inventory_items <span className="kw">FOR ALL</span>{'\n'}
-                <span className="kw">USING</span> (is_facility_staff(auth.uid(), facility_id));{'\n\n'}
-                <span className="cm">-- transfer_requests: visible to both requesting and supplying facilities</span>{'\n'}
-                <span className="kw">CREATE POLICY</span> <span className="str">"Transfer parties can see their transfers"</span>{'\n'}
-                <span className="kw">ON</span> transfer_requests <span className="kw">FOR SELECT</span>{'\n'}
-                <span className="kw">USING</span> ({'\n'}
-                {'  '}is_facility_staff(auth.uid(), requesting_facility_id) <span className="kw">OR</span>{'\n'}
-                {'  '}is_facility_staff(auth.uid(), supplying_facility_id){'\n'}
-                );
-              </div>
-              <div className="d-note d-note-info"><span className="d-note-icon">ℹ</span><span>RPC functions marked <span className="d-inline-code">SECURITY DEFINER</span> run with elevated privileges but still enforce their own authorization checks using <span className="d-inline-code">is_facility_staff()</span>. Granting EXECUTE to the <span className="d-inline-code">authenticated</span> role is required: <span className="d-inline-code">GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;</span></span></div>
-            </div>
-
-            {/* WEBHOOKS */}
-            <div className="d-section" id="webhooks">
-              <div className="d-section-title">Webhooks &amp; events</div>
-              <p className="d-section-desc">Database webhooks trigger Supabase Edge Functions on table events. Two webhooks are currently active.</p>
-              <div className="d-table-wrap"><table className="d-table"><thead><tr><th>Webhook</th><th>Table</th><th>Event</th><th>Edge Function</th></tr></thead><tbody>
-                <tr><td>notify-transfer</td><td>transfer_requests</td><td>UPDATE</td><td>notify-transfer</td></tr>
-                <tr><td>notify-alert</td><td>stock_alerts</td><td>INSERT</td><td>notify-alert</td></tr>
-              </tbody></table></div>
-              <div className="d-subsection">
-                <div className="d-subsection-title">Edge Function environment</div>
-                <div className="d-code-block">
-                  <span className="cm"># Required secrets in Supabase Edge Functions</span>{'\n'}
-                  RESEND_API_KEY=re_xxxxxxxxxxxx{'\n'}
-                  SUPABASE_URL=https://[ref].supabase.co{'\n'}
-                  SUPABASE_SERVICE_ROLE_KEY=eyJ... <span className="cm"># auto-available in edge functions</span>
-                </div>
-              </div>
-            </div>
-
             {/* ROLES REF */}
             <div className="d-section" id="roles">
               <div className="d-section-title">Roles &amp; permissions reference</div>
@@ -608,9 +491,8 @@ export default function DocsPage() {
               <div className="d-faq-item"><div className="d-faq-q">What happens when a transfer is rejected or cancelled?</div><div className="d-faq-a">Any reserved stock (quantity_reserved) is immediately released back to available via the RPC. The requesting facility is notified by email and can search the network for alternative supply.</div></div>
               <div className="d-faq-item"><div className="d-faq-q">How do I get a medicine added to the catalog?</div><div className="d-faq-a">The catalog is based on the Nigeria Essential Medicines List (NEML) 8th Edition 2024. If a medicine you stock is not listed, email <a href="mailto:hello@orela.africa">hello@orela.africa</a> with the generic name, strength, and dosage form and it will be added promptly.</div></div>
               <div className="d-faq-item"><div className="d-faq-q">How does facility verification work?</div><div className="d-faq-a">Verification is currently manual. After registration, email <a href="mailto:hello@orela.africa">hello@orela.africa</a> with your registration number (PCN/NAFDAC/PPB) and facility name. Verified facilities show a green badge in network search results.</div></div>
-              <div className="d-faq-item"><div className="d-faq-q">Why am I seeing the onboarding screen instead of the dashboard?</div><div className="d-faq-a">This usually means your user account is not linked to a facility in the facility_staff table. Email <a href="mailto:hello@orela.africa">hello@orela.africa</a> with your registered email address and we will fix the link.</div></div>
-              <div className="d-faq-item"><div className="d-faq-q">Why can't I add stock with a near-expiry date?</div><div className="d-faq-a">This was a known database constraint issue during early beta. It has been resolved. If you encounter this, email <a href="mailto:hello@orela.africa">hello@orela.africa</a>.</div></div>
-              <div className="d-faq-item"><div className="d-faq-q">The GRANT EXECUTE on RPC functions failed. What signature should I use?</div><div className="d-faq-a">Use the blanket grant: <span className="d-inline-code">GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;</span> — this works regardless of function signature and covers all current and future RPCs.</div></div>
+              <div className="d-faq-item"><div className="d-faq-q">Why am I seeing the onboarding screen instead of the dashboard?</div><div className="d-faq-a">This usually means your account setup is incomplete. Email <a href="mailto:hello@orela.africa">hello@orela.africa</a> with your registered email address and we will fix it promptly.</div></div>
+              <div className="d-faq-item"><div className="d-faq-q">Why can't I add stock with a near-expiry date?</div><div className="d-faq-a">This was a known issue during early beta. It has been resolved. If you encounter this, email <a href="mailto:hello@orela.africa">hello@orela.africa</a>.</div></div>
             </div>
 
             {/* CTA */}
