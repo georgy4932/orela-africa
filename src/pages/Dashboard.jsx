@@ -197,6 +197,28 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Mobile quick actions — visible only on small screens */}
+      <div className="mobile-quick-actions">
+        <Link to="/inventory" className="mobile-qa-item">
+          <span className="mobile-qa-icon">📦</span>
+          <span className="mobile-qa-label">Add Inventory</span>
+        </Link>
+        <Link to="/search" className="mobile-qa-item">
+          <span className="mobile-qa-icon">🔍</span>
+          <span className="mobile-qa-label">Search Network</span>
+        </Link>
+        <Link to="/transfers" className="mobile-qa-item">
+          <span className="mobile-qa-icon">↔</span>
+          <span className="mobile-qa-label">Requests</span>
+          {transfers.length > 0 && <span className="mobile-qa-badge">{transfers.length}</span>}
+        </Link>
+        <Link to="/alerts" className="mobile-qa-item">
+          <span className="mobile-qa-icon">⚡</span>
+          <span className="mobile-qa-label">Alerts</span>
+          {alerts.length > 0 && <span className="mobile-qa-badge">{alerts.length}</span>}
+        </Link>
+      </div>
+
       {/* KPI cards — network framing */}
       <div className="grid-4" style={{ marginBottom: 20 }}>
         <StatCard

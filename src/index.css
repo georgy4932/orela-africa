@@ -344,11 +344,18 @@ tbody tr:last-child td{border-bottom:none}
 .w-full{width:100%}.min-w-0{min-width:0}.flex-1{flex:1}.flex-shrink-0{flex-shrink:0}
 
 .mobile-topbar{display:none;position:fixed;top:0;left:0;right:0;height:52px;z-index:100;background:var(--bg-secondary);border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;padding:0 16px;gap:12px}
-.mobile-menu-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all var(--t);flex-shrink:0}
+.mobile-menu-wrap{position:relative;flex-shrink:0}
+.mobile-menu-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all var(--t)}
 .mobile-menu-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
+.mobile-topbar-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;background:var(--warning);color:#07111f;border-radius:99px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px;pointer-events:none;border:2px solid var(--bg-secondary)}
 .mobile-topbar-brand{flex:1;display:flex;flex-direction:column;gap:1px}
 .mobile-overlay{position:fixed;inset:0;background:rgba(4,9,18,0.7);backdrop-filter:blur(4px);z-index:150}
-.mobile-drawer{position:fixed;top:0;left:0;bottom:0;width:260px;z-index:200;animation:slideRight 0.2s ease;box-shadow:4px 0 32px rgba(0,0,0,0.5);display:flex!important;flex-direction:column;overflow-y:auto;overflow-x:hidden;background:var(--bg-secondary)}
+.mobile-drawer{position:fixed;top:0;left:0;bottom:0;width:min(280px,88vw);z-index:200;animation:slideRight 0.2s ease;box-shadow:4px 0 32px rgba(0,0,0,0.5);display:flex!important;flex-direction:column;overflow:hidden;background:var(--bg-secondary)}
+.mobile-drawer-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;border-bottom:1px solid var(--border-soft);flex-shrink:0}
+.mobile-drawer-close{width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:var(--r);background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all var(--t);flex-shrink:0}
+.mobile-drawer-close:hover{background:var(--bg-hover);color:var(--text-primary)}
+.mobile-drawer-body{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:4px}
+.mobile-drawer .sidebar-footer{flex-shrink:0;border-top:1px solid var(--border-soft);padding:10px 10px 14px}
 @keyframes slideRight{from{transform:translateX(-100%)}to{transform:translateX(0)}}
 
 @media(max-width:768px){
@@ -359,12 +366,20 @@ tbody tr:last-child td{border-bottom:none}
   .page-wrapper{padding:16px 16px 48px}
   .page-title{font-size:18px}
   .page-top{padding:16px 0 14px;margin-bottom:16px}
+  .stat-card{padding:12px 14px 10px}
   .stat-value{font-size:26px}
   .grid-4{grid-template-columns:1fr 1fr}
   .modal{max-width:100%;border-radius:var(--r-xl) var(--r-xl) 0 0;position:fixed;bottom:0;left:0;right:0;max-height:88vh}
   .modal-overlay{align-items:flex-end;padding:0}
   .analytics-grid{grid-template-columns:1fr}
+  .mobile-quick-actions{display:grid}
 }
+.mobile-quick-actions{display:none;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.mobile-qa-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:14px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);text-decoration:none;transition:border-color var(--t);min-height:72px}
+.mobile-qa-item:hover,.mobile-qa-item:active{border-color:var(--border-strong)}
+.mobile-qa-icon{font-size:18px;line-height:1}
+.mobile-qa-label{font-size:10.5px;font-weight:600;color:var(--text-secondary);text-align:center;line-height:1.2}
+.mobile-qa-badge{font-size:8px;font-weight:700;background:var(--warning);color:#07111f;border-radius:99px;padding:1px 5px;line-height:14px}
 @media(max-width:480px){
   .grid-2,.grid-4{grid-template-columns:1fr}
   .page-actions{width:100%}
