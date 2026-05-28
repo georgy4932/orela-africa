@@ -37,6 +37,7 @@ export default function TransfersPage() {
     let q = supabase
       .from('transfer_requests')
       .select(`id,status,urgency,quantity_requested,quantity_approved,quantity_fulfilled,reason,notes,created_at,fulfilled_at,receipt_confirmed,
+        medicine_id,
         medicines(generic_name,strength),
         requesting:requesting_facility_id(id,name,city),
         supplying:supplying_facility_id(id,name,city)`)
@@ -141,7 +142,7 @@ function TransferCard({ transfer: t, facilityId, onAction }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Badge className={transferStatusClass(t.status)} dot>{transferStatusLabel(t.status)}</Badge>
-          {t.urgency !== 'normal' && <Badge className={urgencyClass(t.urgency)}>{t.urgency}</Badge>}
+          {t.urgency !== 'routine' && <Badge className={urgencyClass(t.urgency)}>{t.urgency}</Badge>}
           {isRequesting && <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-xs)', padding: '1px 6px' }}>Outgoing</span>}
           {isSupplying  && <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 'var(--r-xs)', padding: '1px 6px' }}>Incoming</span>}
           <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{fmtRelative(t.created_at)}</span>
@@ -246,7 +247,7 @@ function NewTransferModal({ facilityId, prefill, onClose, onSuccess }) {
     supplying_facility_id: prefill?.supplying_facility_id ?? '',
     medicine_id:           prefill?.medicine_id           ?? '',
     quantity_requested:    '',
-    urgency:               'normal',
+    urgency:               'routine',
     reason:                '',
   })
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
@@ -324,7 +325,7 @@ function NewTransferModal({ facilityId, prefill, onClose, onSuccess }) {
               value={f.urgency}
               onChange={v => set('urgency', v)}
               options={[
-                { value: 'normal',   label: 'Normal' },
+                { value: 'routine',  label: 'Routine' },
                 { value: 'urgent',   label: 'Urgent — stockout imminent' },
                 { value: 'critical', label: 'Critical — patients affected' },
               ]}
@@ -343,20 +344,31 @@ function NewTransferModal({ facilityId, prefill, onClose, onSuccess }) {
 }
 
 function ActionModal({ action: { type, transfer }, facilityId, onClose, onSuccess }) {
-  const [inventoryItems, setInventoryItems] = useState([])
+  const [inventoryItems,  setInventoryItems]  = useState([])
+  const [loadingBatches,  setLoadingBatches]  = useState(false)
   const [f,       setF]       = useState({ inventory_item_id: '', quantity: '', notes: '' })
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
 
   useEffect(() => {
     if (type === 'approve') {
+      if (!transfer.medicine_id) {
+        setError('Transfer is missing medicine_id — please reload the page and try again.')
+        return
+      }
+      setLoadingBatches(true)
       supabase.from('inventory_items')
         .select('id,batch_number,quantity_available,quantity_reserved,expiry_date')
         .eq('facility_id', facilityId)
         .eq('medicine_id', transfer.medicine_id)
         .eq('is_active', true)
-        .eq('network_suppressed', false)
-        .then(({ data }) => setInventoryItems(data ?? []))
+        .then(({ data, error: qErr }) => {
+          if (qErr) { setError(qErr.message); setLoadingBatches(false); return }
+          // Only show batches with net available stock > 0
+          const eligible = (data ?? []).filter(i => i.quantity_available - i.quantity_reserved > 0)
+          setInventoryItems(eligible)
+          setLoadingBatches(false)
+        })
     }
   }, [type])
 
@@ -371,7 +383,12 @@ function ActionModal({ action: { type, transfer }, facilityId, onClose, onSucces
   }
 
   async function handleSubmit(e) {
-    e.preventDefault(); setError(null); setLoading(true)
+    e.preventDefault(); setError(null)
+    if (type === 'approve' && !f.inventory_item_id) {
+      setError('Please select a batch to reserve before approving.')
+      return
+    }
+    setLoading(true)
     let err
     if (type === 'approve') {
       const res = await supabase.rpc('approve_transfer_request', { p_request_id: transfer.id, p_quantity_approved: Number(f.quantity), p_inventory_item_id: f.inventory_item_id })
@@ -419,7 +436,12 @@ function ActionModal({ action: { type, transfer }, facilityId, onClose, onSucces
     <Modal title={TITLES[type]} onClose={onClose} size="modal-sm"
       footer={<>
         <button className="btn btn-ghost" onClick={onClose}>Back</button>
-        <button className={`btn ${BTN[type].cls}`} form="action-form" type="submit" disabled={loading}>
+        <button
+          className={`btn ${BTN[type].cls}`}
+          form="action-form"
+          type="submit"
+          disabled={loading || (type === 'approve' && (loadingBatches || !f.inventory_item_id || inventoryItems.length === 0))}
+        >
           {loading ? <><div className="spinner spinner-sm"/> Processing…</> : BTN[type].label}
         </button>
       </>}
@@ -440,15 +462,24 @@ function ActionModal({ action: { type, transfer }, facilityId, onClose, onSucces
           <>
             <div className="field">
               <label>Select batch to reserve *</label>
-              <CustomSelect
-                value={f.inventory_item_id}
-                onChange={v => setF(p => ({ ...p, inventory_item_id: v }))}
-                placeholder="Choose batch…"
-                options={inventoryItems.map(i => ({
-                  value: i.id,
-                  label: `Batch ${i.batch_number} · ${fmtNumber(i.quantity_available - i.quantity_reserved)} available · exp ${fmtDate(i.expiry_date)}`,
-                }))}
-              />
+              {loadingBatches ? (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>Loading eligible batches…</div>
+              ) : inventoryItems.length === 0 ? (
+                <div className="inline-alert alert-warning">
+                  <span className="inline-alert-icon">⚠</span>
+                  <span>No eligible inventory available for this medicine at your facility. Add stock in Inventory before approving.</span>
+                </div>
+              ) : (
+                <CustomSelect
+                  value={f.inventory_item_id}
+                  onChange={v => setF(p => ({ ...p, inventory_item_id: v }))}
+                  placeholder="Choose batch…"
+                  options={inventoryItems.map(i => ({
+                    value: i.id,
+                    label: `Batch ${i.batch_number} · ${fmtNumber(i.quantity_available - i.quantity_reserved)} available · exp ${fmtDate(i.expiry_date)}`,
+                  }))}
+                />
+              )}
             </div>
             <div className="field">
               <label>Quantity to approve *</label>
