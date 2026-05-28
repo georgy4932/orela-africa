@@ -269,6 +269,9 @@ tbody tr:last-child td{border-bottom:none}
 .activity-text{color:var(--text-secondary);line-height:1.5;flex:1;font-size:12px}
 .activity-time{color:var(--text-disabled);font-size:10px;flex-shrink:0;margin-top:2px}
 .progress-bar{height:3px;background:var(--bg-elevated);border-radius:99px;overflow:hidden}
+.alert-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px}
+.alert-card-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-soft)}
+@media(max-width:480px){.alert-card-actions{flex-direction:column}.alert-card-actions .btn{width:100%;justify-content:center}}
 .progress-fill{height:100%;background:var(--primary);border-radius:99px;transition:width 0.5s ease}
 .progress-fill.warning{background:var(--warning)}
 .progress-fill.danger{background:var(--danger)}
