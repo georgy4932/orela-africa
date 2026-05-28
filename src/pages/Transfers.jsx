@@ -66,8 +66,8 @@ export default function TransfersPage() {
         </div>
       </div>
 
-      {/* Framing banner */}
-      <div className="card card-pad" style={{ marginBottom: 16, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+      {/* Framing banner — hidden on mobile to get content above fold */}
+      <div className="transfers-howto card card-pad" style={{ marginBottom: 16, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
         {[
           { icon: '🔍', label: 'Find supply', desc: 'Search the network for available medicines from trusted facilities nearby.' },
           { icon: '↔', label: 'Request transfer', desc: 'Submit a stock request. The supplying facility reviews and approves.' },
@@ -214,14 +214,14 @@ function TransferCard({ transfer: t, facilityId, onAction }) {
 
         {/* Requesting facility: confirm receipt when stock is in transit — this adds stock to inventory */}
         {isRequesting && t.status === 'in_transit' && (
-          <div style={{ width: '100%', marginTop: 4, background: 'var(--bg-primary)', border: '1px solid var(--primary-border)', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>
-              Has the stock arrived?
+          <div className="tr-action-panel tr-action-panel-primary">
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary)', marginBottom: 3 }}>
+              📦 Has the stock arrived?
             </div>
             <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.5 }}>
-              Confirm when the stock physically arrives at your facility. This will add it to your inventory.
+              Confirm when the stock physically arrives. This will add it to your inventory.
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="tr-action-btns">
               <button className="btn btn-primary btn-sm" onClick={() => onAction('fulfill')}>
                 ✓ Stock received — add to inventory
               </button>
@@ -239,7 +239,7 @@ function TransferCard({ transfer: t, facilityId, onAction }) {
           const autoCloseIn  = hoursLeft > 0 ? `${hoursLeft}h` : 'soon'
           const autoClosing  = hoursLeft === 0
           return (
-            <div style={{ width: '100%', marginTop: 4, background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
+            <div className="tr-action-panel">
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
                 Did you receive this stock?
               </div>
@@ -249,7 +249,7 @@ function TransferCard({ transfer: t, facilityId, onAction }) {
                   : <>The supplier has marked this as delivered. Confirm receipt or report non-delivery within <strong style={{color:'var(--text-secondary)'}}>{autoCloseIn}</strong>.</>
                 }
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="tr-action-btns">
                 <button className="btn btn-success btn-sm" onClick={() => onAction('confirm_receipt')}>
                   ✓ Confirm receipt
                 </button>
@@ -427,10 +427,18 @@ function NewTransferModal({ facilityId, prefill, onClose, onSuccess }) {
           <div className="field-hint">Only showing facilities that currently have this medicine in stock</div>
         </div>
 
-        <div className="grid-2">
+        <div className="form-row-2">
           <div className="field">
             <label>Quantity needed *</label>
-            <input type="number" required min={1} value={f.quantity_requested} onChange={e => set('quantity_requested', e.target.value)} />
+            <input
+              type="number"
+              required
+              min={1}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={f.quantity_requested}
+              onChange={e => set('quantity_requested', e.target.value)}
+            />
           </div>
           <div className="field">
             <label>Urgency</label>

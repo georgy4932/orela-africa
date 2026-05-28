@@ -272,6 +272,10 @@ tbody tr:last-child td{border-bottom:none}
 .alert-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px}
 .alert-card-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border-soft)}
 @media(max-width:480px){.alert-card-actions{flex-direction:column}.alert-card-actions .btn{width:100%;justify-content:center}}
+.tr-action-panel{width:100%;margin-top:6px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px}
+.tr-action-panel-primary{border-color:var(--primary-border);background:var(--primary-dim)}
+.tr-action-btns{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:480px){.tr-action-btns{flex-direction:column}.tr-action-btns .btn{width:100%;justify-content:center;text-align:center}}
 .progress-fill{height:100%;background:var(--primary);border-radius:99px;transition:width 0.5s ease}
 .progress-fill.warning{background:var(--warning)}
 .progress-fill.danger{background:var(--danger)}
@@ -362,6 +366,7 @@ tbody tr:last-child td{border-bottom:none}
 @keyframes slideRight{from{transform:translateX(-100%)}to{transform:translateX(0)}}
 
 @media(max-width:768px){
+  .transfers-howto{display:none}
   .sidebar:not(.mobile-drawer){display:none}
   .mobile-topbar{display:flex}
   .app-shell{flex-direction:column}
