@@ -216,8 +216,9 @@ export default function InventoryPage() {
   const [search,    setSearch]    = useState('')
   const [filter,    setFilter]    = useState('all')
   const [addOpen,   setAddOpen]   = useState(false)
-  const [adjItem,   setAdjItem]   = useState(null)
-  const [editItem,  setEditItem]  = useState(null)
+  const [adjItem,    setAdjItem]    = useState(null)
+  const [editItem,   setEditItem]   = useState(null)
+  const [expireItem, setExpireItem] = useState(null)
 
   const load = useCallback(async () => {
     if (!facilityId) return
@@ -427,6 +428,7 @@ export default function InventoryPage() {
                     <div style={{ display: 'flex', gap: 5 }}>
                       <button className="btn btn-ghost btn-xs" onClick={() => setAdjItem(item)}>Adjust</button>
                       <button className="btn btn-ghost btn-xs" onClick={() => setEditItem(item)}>Edit</button>
+                      <button className="btn btn-ghost btn-xs" style={{ color: 'var(--danger)' }} onClick={() => setExpireItem(item)}>Expire</button>
                     </div>
                   </td>
                 </tr>
@@ -511,6 +513,7 @@ export default function InventoryPage() {
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button className="btn btn-ghost btn-xs" onClick={() => setAdjItem(item)}>Adjust</button>
                   <button className="btn btn-ghost btn-xs" onClick={() => setEditItem(item)}>Edit</button>
+                  <button className="btn btn-ghost btn-xs" style={{ color: 'var(--danger)' }} onClick={() => setExpireItem(item)}>Expire</button>
                 </div>
               </div>
             </div>
@@ -518,9 +521,10 @@ export default function InventoryPage() {
         })}
       </div>
 
-      {addOpen  && <AddModal key={Date.now()} facilityId={facilityId} medicines={medicines} suppliers={suppliers} currency={facility?.default_currency} onClose={() => setAddOpen(false)}  onSuccess={() => { setAddOpen(false);  load() }} />}
-      {adjItem  && <AdjModal  item={adjItem}  onClose={() => setAdjItem(null)}  onSuccess={() => { setAdjItem(null);  load() }} />}
-      {editItem && <EditModal item={editItem} isAdmin={isAdmin} suppliers={suppliers} currency={facility?.default_currency} onClose={() => setEditItem(null)} onSuccess={() => { setEditItem(null); load() }} />}
+      {addOpen    && <AddModal key={Date.now()} facilityId={facilityId} medicines={medicines} suppliers={suppliers} currency={facility?.default_currency} onClose={() => setAddOpen(false)}    onSuccess={() => { setAddOpen(false);    load() }} />}
+      {adjItem    && <AdjModal    item={adjItem}    onClose={() => setAdjItem(null)}    onSuccess={() => { setAdjItem(null);    load() }} />}
+      {editItem   && <EditModal   item={editItem}   isAdmin={isAdmin} suppliers={suppliers} currency={facility?.default_currency} onClose={() => setEditItem(null)}   onSuccess={() => { setEditItem(null);   load() }} />}
+      {expireItem && <ExpireModal item={expireItem} onClose={() => setExpireItem(null)} onSuccess={() => { setExpireItem(null); load() }} />}
     </div>
   )
 }
@@ -983,6 +987,73 @@ function AdjModal({ item, onClose, onSuccess }) {
           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Reference or reason for this movement" />
         </div>
       </form>
+    </Modal>
+  )
+}
+
+function ExpireModal({ item, onClose, onSuccess }) {
+  const [notes,   setNotes]   = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState(null)
+  const available = item.quantity_available - item.quantity_reserved
+
+  async function handleConfirm() {
+    setLoading(true); setError(null)
+    if (available > 0) {
+      const { error: adjErr } = await supabase.rpc('update_inventory_quantity', {
+        p_inventory_item_id: item.id,
+        p_quantity_change:   -available,
+        p_movement_type:     'expired_removal',
+        p_notes:             notes || `Expired batch removed on ${new Date().toISOString().slice(0, 10)}`,
+      })
+      if (adjErr) { setError(adjErr.message); setLoading(false); return }
+    }
+    const { error: updateErr } = await supabase
+      .from('inventory_items')
+      .update({ is_active: false })
+      .eq('id', item.id)
+    if (updateErr) { setError(updateErr.message); setLoading(false); return }
+    onSuccess()
+  }
+
+  return (
+    <Modal
+      title="Remove expired stock"
+      subtitle="The batch will be logged as an expired removal and removed from the network"
+      onClose={onClose}
+      size="modal-sm"
+      footer={<>
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button
+          className="btn"
+          style={{ background: 'var(--danger)', color: '#fff' }}
+          onClick={handleConfirm}
+          disabled={loading}
+        >
+          {loading ? <><div className="spinner spinner-sm" style={{ borderTopColor: '#fff' }}/> Removing…</> : 'Confirm expired removal'}
+        </button>
+      </>}
+    >
+      <ContextCard
+        title={item.medicines?.generic_name}
+        meta={`Batch ${item.batch_number} · Expires ${fmtDate(item.expiry_date)}`}
+      />
+      <InlineError message={error} />
+      <div className="inline-alert alert-warning" style={{ fontSize: 12 }}>
+        <span className="inline-alert-icon">⚠</span>
+        <div>
+          This will log an <strong>expired removal</strong> of <strong>{fmtNumber(available)} units</strong> and
+          deactivate the batch from the medicine availability network. The movement is recorded in the audit trail.
+        </div>
+      </div>
+      <div className="field" style={{ marginTop: 12 }}>
+        <label>Notes</label>
+        <textarea
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Optional: reason or reference for this removal"
+        />
+      </div>
     </Modal>
   )
 }
