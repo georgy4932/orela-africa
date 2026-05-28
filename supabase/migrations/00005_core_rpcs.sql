@@ -29,7 +29,9 @@ CREATE OR REPLACE FUNCTION public.medicine_search(
   p_country     text    DEFAULT NULL,
   p_state       text    DEFAULT NULL,
   p_city        text    DEFAULT NULL,
-  p_dosage_form text    DEFAULT NULL
+  p_dosage_form text    DEFAULT NULL,
+  p_limit       integer DEFAULT 50,
+  p_offset      integer DEFAULT 0
 )
 RETURNS TABLE (
   medicine_id          uuid,
@@ -91,11 +93,12 @@ BEGIN
     AND (p_city        IS NULL OR v.city           ILIKE '%' || p_city  || '%')
     AND (p_dosage_form IS NULL OR v.dosage_form    ILIKE p_dosage_form)
   ORDER BY v.total_available DESC, v.generic_name ASC
-  LIMIT 200;
+  LIMIT LEAST(COALESCE(p_limit, 50), 200)
+  OFFSET COALESCE(p_offset, 0);
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.medicine_search(text, text, text, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.medicine_search(text, text, text, text, text, integer, integer) TO authenticated;
 
 -- =============================================================================
 -- 2. create_inventory_item

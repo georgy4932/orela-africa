@@ -279,6 +279,7 @@ CREATE TABLE IF NOT EXISTS public.batch_alerts (
   status              text NOT NULL DEFAULT 'active'
                         CHECK (status IN ('active','resolved')),
   issued_at           timestamptz,
+  expires_at          timestamptz,
   created_at          timestamptz NOT NULL DEFAULT now(),
   resolved_at         timestamptz,
   resolved_by         uuid REFERENCES auth.users(id)
