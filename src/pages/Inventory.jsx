@@ -74,8 +74,9 @@ function parseGS1Barcode(raw) {
 // iOS Safari, Chrome, Firefox). Loaded dynamically to keep initial bundle small.
 // ---------------------------------------------------------------------------
 function BarcodeScanner({ onScan, onCancel }) {
-  const videoRef = useRef(null)
-  const [status, setStatus] = useState('loading') // 'loading' | 'scanning' | 'error'
+  const videoRef     = useRef(null)
+  const guidanceTimer = useRef(null)
+  const [status, setStatus] = useState('loading') // 'loading' | 'scanning' | 'guidance' | 'error'
   const [errMsg, setErrMsg] = useState('')
 
   useEffect(() => {
@@ -91,7 +92,11 @@ function BarcodeScanner({ onScan, onCancel }) {
         const cb = (result, _err) => {
           if (stopped || !result) return
           const text = result.getText()
-          if (text) { stopped = true; onScan(text) }
+          if (text) {
+            stopped = true
+            clearTimeout(guidanceTimer.current)
+            onScan(text)
+          }
         }
 
         // Prefer rear-facing camera (critical for mobile usability)
@@ -105,7 +110,13 @@ function BarcodeScanner({ onScan, onCancel }) {
           if (stopped) return
           controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, cb)
         }
-        if (!stopped) setStatus('scanning')
+        if (!stopped) {
+          setStatus('scanning')
+          // After 8 s without a scan, show helpful guidance
+          guidanceTimer.current = setTimeout(() => {
+            if (!stopped) setStatus('guidance')
+          }, 8000)
+        }
       } catch (e) {
         if (stopped) return
         const msg = String(e?.message ?? e)
@@ -114,7 +125,7 @@ function BarcodeScanner({ onScan, onCancel }) {
         else if (/not found|no device|no camera/i.test(msg))
           setErrMsg('No camera found on this device.')
         else
-          setErrMsg('Could not start camera. Enter the batch number manually instead.')
+          setErrMsg('Could not start camera.')
         setStatus('error')
       }
     }
@@ -122,70 +133,78 @@ function BarcodeScanner({ onScan, onCancel }) {
     start()
     return () => {
       stopped = true
+      clearTimeout(guidanceTimer.current)
       try { controls?.stop() } catch (_) {}
     }
   }, [])
 
   if (status === 'error') {
     return (
-      <div style={{ textAlign: 'center', padding: '28px 16px', display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+      <div className="scanner-error">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
         </svg>
-        <div style={{ fontSize: 12.5, color: 'var(--danger)', maxWidth: 280, lineHeight: 1.55 }}>{errMsg}</div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Enter manually instead</button>
+        <p className="scanner-error-msg">{errMsg}</p>
+        <button type="button" className="btn btn-primary" onClick={onCancel} style={{ width: '100%' }}>
+          Enter batch details manually →
+        </button>
       </div>
     )
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Camera viewfinder */}
-      <div style={{ position: 'relative', background: '#000', borderRadius: 'var(--r-lg)', overflow: 'hidden', aspectRatio: '4/3', maxHeight: 300 }}>
-        <video
-          ref={videoRef}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          muted playsInline autoPlay
-        />
-        {/* Overlay */}
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, transparent 38%, rgba(0,0,0,0.52) 100%)' }} />
-          {/* Target rectangle */}
-          <div style={{ position: 'relative', width: '78%', height: '42%', border: '2px solid rgba(25,194,181,0.9)', borderRadius: 'var(--r)', zIndex: 1 }}>
-            {/* Animated scan line */}
-            {status === 'scanning' && (
-              <div style={{
-                position: 'absolute', left: 4, right: 4, height: 2,
-                background: 'linear-gradient(90deg, transparent, var(--primary) 50%, transparent)',
-                animation: 'scanLine 2s ease-in-out infinite',
-              }} />
-            )}
-            {/* Corner marks */}
-            {[[0,0],[0,1],[1,0],[1,1]].map(([r,c],i) => (
-              <div key={i} style={{
-                position:'absolute', width:12, height:12,
-                [r ? 'bottom' : 'top']: -2, [c ? 'right' : 'left']: -2,
-                borderColor: 'var(--primary)', borderStyle: 'solid',
-                borderTopWidth: r ? 0 : 3, borderBottomWidth: r ? 3 : 0,
-                borderLeftWidth: c ? 0 : 3, borderRightWidth: c ? 3 : 0,
-                borderRadius: r ? (c ? '0 0 3px 0':'0 0 0 3px') : (c ? '0 3px 0 0':'3px 0 0 0'),
-              }}/>
-            ))}
+    <div className="scanner-shell">
+      {/* Camera viewfinder — fills available width, taller than old 300px cap */}
+      <div className="scanner-viewfinder">
+        <video ref={videoRef} className="scanner-video" muted playsInline autoPlay />
+
+        {/* Dim border + frame overlay */}
+        <div className="scanner-overlay" style={{ pointerEvents: 'none' }}>
+          <div style={{ flex: 1, background: 'rgba(0,0,0,0.48)', width: '100%' }} />
+          <div style={{ display: 'flex', flex: 3 }}>
+            <div style={{ flex: 1, background: 'rgba(0,0,0,0.48)' }} />
+            <div className="scanner-frame">
+              <div className="scanner-corner scanner-corner-tl" />
+              <div className="scanner-corner scanner-corner-tr" />
+              <div className="scanner-corner scanner-corner-bl" />
+              <div className="scanner-corner scanner-corner-br" />
+              {status !== 'loading' && <div className="scanner-scanline" />}
+            </div>
+            <div style={{ flex: 1, background: 'rgba(0,0,0,0.48)' }} />
           </div>
+          <div style={{ flex: 1, background: 'rgba(0,0,0,0.48)', width: '100%' }} />
         </div>
+
         {status === 'loading' && (
-          <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div className="spinner spinner-lg" />
           </div>
         )}
       </div>
-      <p style={{ textAlign: 'center', fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
-        {status === 'scanning'
-          ? 'Align the barcode inside the frame — it will scan automatically'
-          : 'Starting camera…'}
+
+      {/* Instructions */}
+      <p className="scanner-hint">
+        {status === 'loading'
+          ? 'Starting camera…'
+          : 'Align barcode or QR / DataMatrix code inside the frame — it scans automatically'}
       </p>
-      <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel} style={{ width: '100%' }}>
-        Cancel — enter manually
+
+      {/* Guidance panel after 8 s timeout */}
+      {status === 'guidance' && (
+        <div className="inline-alert alert-info" style={{ fontSize: 11 }}>
+          <span className="inline-alert-icon">💡</span>
+          <div>
+            <strong>Still scanning.</strong> Try better lighting or hold the device closer.
+            GS1-128, DataMatrix and QR codes on medicine packaging are all supported.
+            If the barcode is damaged, use manual entry instead.
+          </div>
+        </div>
+      )}
+
+      {/* Always-visible manual fallback */}
+      <button type="button" className="btn btn-ghost" onClick={onCancel} style={{ width: '100%' }}>
+        Enter manually instead
       </button>
     </div>
   )
@@ -653,11 +672,14 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
     brand_name: '', supplier_id: '', manufacture_date: '', unit_cost: '', selling_price: '',
     storage_condition: 'room_temperature', storage_location: '', notes: '',
   })
-  const [loading,    setLoading]    = useState(false)
-  const [error,      setError]      = useState(null)
-  const [entryMode,  setEntryMode]  = useState('manual')   // 'manual' | 'scan'
-  const [lastScan,   setLastScan]   = useState(null)        // parsed GS1 result
+  const [loading,      setLoading]      = useState(false)
+  const [error,        setError]        = useState(null)
+  const [fieldErrors,  setFieldErrors]  = useState({})
+  const [entryMode,    setEntryMode]    = useState('manual')  // 'manual' | 'scan'
+  const [lastScan,     setLastScan]     = useState(null)
+  const [showOptional, setShowOptional] = useState(false)
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
+  const clearFE = k => setFieldErrors(p => { const n = { ...p }; delete n[k]; return n })
 
   function handleScan(raw) {
     const parsed = parseGS1Barcode(raw)
@@ -671,14 +693,22 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
   }
 
   async function handleSubmit(e) {
-    e.preventDefault(); setError(null)
+    e.preventDefault()
+    setError(null)
+    const fe = {}
+    if (!f.medicine_id)        fe.medicine_id  = 'Select a medicine'
+    if (!f.batch_number.trim()) fe.batch_number = 'Batch number is required'
+    if (!f.expiry_date)        fe.expiry_date  = 'Expiry date is required'
     const rawQty = Number(f.quantity)
-    if (!rawQty || rawQty <= 0) { setError('Quantity must be greater than zero.'); return }
+    if (!rawQty || rawQty <= 0) fe.quantity = 'Quantity must be greater than zero'
     if (f.quantity_type === 'packs') {
-      const ps = f.pack_size
-      if (!ps || ps === '' || ps === 'custom') { setError('Select or enter a pack size when entering quantity in packs.'); return }
-      if (Number(ps) <= 0) { setError('Pack size must be greater than zero.'); return }
+      if (!f.pack_size || f.pack_size === '' || f.pack_size === 'custom')
+        fe.pack_size = 'Select or enter a pack size'
+      else if (Number(f.pack_size) <= 0)
+        fe.pack_size = 'Pack size must be greater than zero'
     }
+    if (Object.keys(fe).length > 0) { setFieldErrors(fe); setError('Please fix the errors highlighted below.'); return }
+
     setLoading(true)
     const { error: err } = await supabase.rpc('create_inventory_item', {
       p_facility_id:      facilityId,
@@ -689,7 +719,7 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
                           ? Number(f.quantity) * Number(f.pack_size)
                           : Number(f.quantity),
       p_dispensing_unit:  f.dispensing_unit,
-      p_pack_size:        Number(f.pack_size),
+      p_pack_size:        f.pack_size && f.pack_size !== 'custom' ? Number(f.pack_size) : null,
       p_reorder_level:    Number(f.reorder_level),
       p_brand_name:       f.brand_name       || null,
       p_supplier_id:      f.supplier_id      || null,
@@ -704,6 +734,8 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
     onSuccess()
   }
 
+  const selectedMed = medicines.find(m => m.id === f.medicine_id)
+
   return (
     <Modal title="Add stock batch" subtitle="Stock you add becomes visible to the medicine availability network" onClose={onClose} size="modal-lg"
       footer={<>
@@ -716,216 +748,267 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
       </>}
     >
       {/* Entry mode toggle */}
-      <div style={{ display: 'flex', background: 'var(--bg-primary)', borderRadius: 'var(--r-md)', padding: 3, gap: 3 }}>
+      <div className="entry-mode-toggle">
         {[
-          { key: 'manual', label: 'Enter manually', icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
-          { key: 'scan',   label: 'Scan barcode',  icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> },
+          { key: 'scan',   label: 'Scan barcode',   icon: '📷' },
+          { key: 'manual', label: 'Enter manually',  icon: '✏️' },
         ].map(({ key, label, icon }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setEntryMode(key)}
-            style={{
-              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              padding: '7px 12px', borderRadius: 'var(--r)', fontSize: 12, fontWeight: 500,
-              border: 'none', cursor: 'pointer', transition: 'all var(--t)',
-              background: entryMode === key ? 'var(--bg-elevated)' : 'transparent',
-              color: entryMode === key ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: entryMode === key ? 'var(--shadow-sm)' : 'none',
-            }}
+          <button key={key} type="button" onClick={() => setEntryMode(key)}
+            className={`entry-mode-btn ${entryMode === key ? 'active' : ''}`}
           >
-            {icon}{label}
+            <span style={{ fontSize: 14, lineHeight: 1 }}>{icon}</span>
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Scan mode */}
+      {/* Scanner — takes up the full modal body when active */}
       {entryMode === 'scan' && (
         <BarcodeScanner onScan={handleScan} onCancel={() => setEntryMode('manual')} />
       )}
 
-      {/* Scan success notice */}
-      {entryMode === 'manual' && lastScan && (
-        <div className="inline-alert alert-success" style={{ fontSize: 11.5 }}>
-          <span className="inline-alert-icon">✓</span>
-          <div>
-            <strong>Barcode scanned</strong>
-            {lastScan.batchNumber && <span> · Batch: <code style={{ fontFamily: 'var(--font-mono)' }}>{lastScan.batchNumber}</code></span>}
-            {lastScan.expiryDate  && <span> · Expiry auto-filled</span>}
-            {!lastScan.batchNumber && !lastScan.expiryDate && <span> · Raw: <code style={{ fontFamily: 'var(--font-mono)' }}>{lastScan.raw}</code></span>}
-            <span style={{ color: 'var(--success)', opacity: 0.75 }}> — select the medicine below</span>
-          </div>
-        </div>
-      )}
-
-      {/* Manual entry form — hidden while scanner is active */}
+      {/* Manual entry form */}
       <div style={{ display: entryMode === 'scan' ? 'none' : 'contents' }}>
-      <InlineError message={error} />
-      <form id="add-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div>
-          <div className="form-section-title">Medicine Identity</div>
-          <div className="form-section" style={{ marginTop: 12 }}>
-            <div className="field">
-              <label>Medicine *</label>
-              <MedicineSearch
-                medicines={medicines}
-                value={f.medicine_id}
-                onChange={id => setF(p => ({ ...p, medicine_id: id, nafdac_number: '', pack_size: '', quantity_type: 'units' }))}
-              />
-            </div>
-            {/* NAFDAC validation field */}
-            <div className="field">
-              <label>NAFDAC registration number</label>
-              <input
-                value={f.nafdac_number}
-                onChange={e => set('nafdac_number', e.target.value)}
-                placeholder="e.g. A4-0007"
-                style={{fontFamily:'var(--font-mono)', letterSpacing:'0.03em'}}
-              />
-              {(() => {
-                const selected = medicines.find(m => m.id === f.medicine_id)
-                if (!selected?.nafdac_reg_number) return (
-                  <div className="field-hint">Enter the NAFDAC number from the medicine packaging to verify product identity</div>
-                )
-                const entered = f.nafdac_number.trim().length > 0
-                const matches = f.nafdac_number.trim().toUpperCase() === selected.nafdac_reg_number.toUpperCase()
-                if (!entered) return (
-                  <div className="field-hint">
-                    Expected for {selected.generic_name}:{' '}
-                    <strong style={{color:'var(--text-primary)',fontFamily:'var(--font-mono)'}}>{selected.nafdac_reg_number}</strong>
-                    {' '}— enter this from the packaging to confirm product identity
-                  </div>
-                )
-                return matches
-                  ? <div style={{fontSize:11,color:'var(--success)',marginTop:3}}>✓ Matches catalog — product identity confirmed</div>
-                  : <div style={{fontSize:11,color:'var(--warning)',marginTop:3}}>⚠ Does not match the catalog number for {selected.generic_name}. Double-check the packaging.</div>
-              })()}
-            </div>
-            <div className="grid-2">
-              <div className="field"><label>Batch number *</label><input required value={f.batch_number} onChange={e => set('batch_number', e.target.value)} placeholder="e.g. BT-2024-001" /></div>
-              <div className="field"><label>Brand name</label><input value={f.brand_name} onChange={e => set('brand_name', e.target.value)} placeholder="Optional" /></div>
+
+        {/* Scan confirmation */}
+        {lastScan && (
+          <div className="inline-alert alert-success" style={{ fontSize: 11.5 }}>
+            <span className="inline-alert-icon">✓</span>
+            <div>
+              <strong>Barcode scanned.</strong> Please confirm the medicine and enter the quantity.
+              {lastScan.batchNumber && <> Batch <code style={{ fontFamily: 'var(--font-mono)' }}>{lastScan.batchNumber}</code></>}
+              {lastScan.expiryDate  && <> and expiry date have been auto-filled.</>}
+              {!lastScan.batchNumber && !lastScan.expiryDate && <> Raw code: <code style={{ fontFamily: 'var(--font-mono)' }}>{lastScan.raw}</code></>}
             </div>
           </div>
-        </div>
-        <div>
-          <div className="form-section-title">Stock & Dates</div>
-          <div className="form-section" style={{ marginTop: 12 }}>
-            <div className="grid-2">
-              <div className="field">
-                <label>Initial quantity *</label>
-                <div style={{display:'flex', gap:8, alignItems:'flex-start', flexWrap:'wrap'}}>
-                  <div style={{flex:1, minWidth:80}}>
-                    <input type="number" required min={0} value={f.quantity}
-                      onChange={e => set('quantity', e.target.value)}
-                      style={{width:'100%'}}
-                    />
-                  </div>
-                  <div style={{minWidth:130}}>
+        )}
+
+        <InlineError message={error} />
+
+        <form id="add-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* ── ESSENTIAL FIELDS ── */}
+
+          {/* 1. Medicine */}
+          <div className="field">
+            <label>Medicine *</label>
+            <MedicineSearch
+              medicines={medicines}
+              value={f.medicine_id}
+              onChange={id => { setF(p => ({ ...p, medicine_id: id, nafdac_number: '', pack_size: '', quantity_type: 'units' })); clearFE('medicine_id') }}
+            />
+            {fieldErrors.medicine_id && <div className="field-error">{fieldErrors.medicine_id}</div>}
+          </div>
+
+          {/* 2. Batch # + Expiry — side by side on desktop, stacked on mobile */}
+          <div className="form-row-2">
+            <div className="field">
+              <label>Batch number *</label>
+              <input
+                required
+                value={f.batch_number}
+                onChange={e => { set('batch_number', e.target.value); clearFE('batch_number') }}
+                placeholder="e.g. BT-2024-001"
+                autoCapitalize="characters"
+                autoCorrect="off"
+              />
+              {fieldErrors.batch_number && <div className="field-error">{fieldErrors.batch_number}</div>}
+            </div>
+            <div className="field">
+              <label>Expiry date *</label>
+              <input
+                type="date"
+                required
+                value={f.expiry_date}
+                onChange={e => { set('expiry_date', e.target.value); clearFE('expiry_date') }}
+              />
+              {fieldErrors.expiry_date && <div className="field-error">{fieldErrors.expiry_date}</div>}
+            </div>
+          </div>
+
+          {/* 3. Quantity */}
+          <div className="field">
+            <label>Quantity *</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input
+                type="number"
+                required
+                min={0}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={f.quantity}
+                onChange={e => { set('quantity', e.target.value); clearFE('quantity') }}
+                placeholder="0"
+                style={{ flex: '1 1 90px', minWidth: 80 }}
+              />
+              <div style={{ flex: '1 1 140px' }}>
+                <CustomSelect
+                  value={f.quantity_type}
+                  onChange={v => setF(p => ({ ...p, quantity_type: v, pack_size: '' }))}
+                  options={[
+                    { value: 'units', label: 'Individual units' },
+                    { value: 'packs', label: 'Packs' },
+                  ]}
+                />
+              </div>
+            </div>
+            {fieldErrors.quantity && <div className="field-error">{fieldErrors.quantity}</div>}
+
+            {/* Pack size — only when type is packs */}
+            {f.quantity_type === 'packs' && (
+              <div style={{ marginTop: 8 }}>
+                <label style={{ fontSize: 11, marginBottom: 4, display: 'block', color: 'var(--text-secondary)' }}>Pack size *</label>
+                {(() => {
+                  const sizes = selectedMed?.standard_pack_sizes?.length > 0 ? selectedMed.standard_pack_sizes : null
+                  const sizeList = sizes ?? [7, 10, 14, 28, 30, 56, 60, 84, 100, 120, 500]
+                  return (
                     <CustomSelect
-                      value={f.quantity_type}
-                      onChange={v => setF(p => ({ ...p, quantity_type: v, pack_size: '' }))}
+                      value={String(f.pack_size)}
+                      onChange={v => { set('pack_size', v); clearFE('pack_size') }}
+                      placeholder="— Select pack size —"
                       options={[
-                        { value: 'units', label: 'Individual units' },
-                        { value: 'packs', label: 'Packs' },
+                        ...sizeList.map(s => ({ value: String(s), label: `${s} ${f.dispensing_unit}s per pack` })),
+                        { value: 'custom', label: 'Other (enter below)' },
                       ]}
                     />
+                  )
+                })()}
+                {String(f.pack_size) === 'custom' && (
+                  <input
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    style={{ marginTop: 6, width: '100%' }}
+                    placeholder="e.g. 28, 56, 100"
+                    onBlur={e => { if (e.target.value) set('pack_size', e.target.value) }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (e.target.value) set('pack_size', e.target.value) } }}
+                    autoFocus
+                  />
+                )}
+                {fieldErrors.pack_size && <div className="field-error">{fieldErrors.pack_size}</div>}
+                {f.quantity && f.pack_size && f.pack_size !== '' && f.pack_size !== 'custom' && Number(f.pack_size) > 1 && Number(f.quantity) > 0 && (
+                  <div className="pack-total-preview">
+                    {Number(f.quantity)} × {Number(f.pack_size)} = <strong>{(Number(f.quantity) * Number(f.pack_size)).toLocaleString()} {f.dispensing_unit}s</strong>
+                  </div>
+                )}
+                <div className="field-hint">Check the count printed on the outer packaging</div>
+              </div>
+            )}
+          </div>
+
+          {/* 4. Dispensing unit + Reorder level */}
+          <div className="form-row-2">
+            <div className="field">
+              <label>Dispensing unit</label>
+              <CustomSelect
+                value={f.dispensing_unit}
+                onChange={v => set('dispensing_unit', v)}
+                options={['tablet','capsule','vial','sachet','bottle','ampoule','tube','patch','unit'].map(u => ({ value: u, label: u.charAt(0).toUpperCase() + u.slice(1) }))}
+              />
+              <div className="field-hint">Smallest unit dispensed to patient</div>
+            </div>
+            <div className="field">
+              <label>Reorder level</label>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={f.reorder_level}
+                onChange={e => set('reorder_level', e.target.value)}
+              />
+              <div className="field-hint">Alert fires below this quantity</div>
+            </div>
+          </div>
+
+          {/* ── OPTIONAL FIELDS ── */}
+          <div className="optional-section">
+            <button type="button" className="optional-section-toggle" onClick={() => setShowOptional(v => !v)}>
+              <span>{showOptional ? '▾' : '▸'} Optional details</span>
+              <span className="optional-section-hint">NAFDAC · brand · supplier · cost · storage</span>
+            </button>
+
+            {showOptional && (
+              <div className="optional-section-body">
+                {/* NAFDAC */}
+                <div className="field">
+                  <label>NAFDAC registration number</label>
+                  <input
+                    value={f.nafdac_number}
+                    onChange={e => set('nafdac_number', e.target.value)}
+                    placeholder="e.g. A4-0007"
+                    style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.03em' }}
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                  />
+                  {(() => {
+                    if (!selectedMed?.nafdac_reg_number) return <div className="field-hint">Enter from packaging to verify product identity</div>
+                    const entered = f.nafdac_number.trim().length > 0
+                    const matches = f.nafdac_number.trim().toUpperCase() === selectedMed.nafdac_reg_number.toUpperCase()
+                    if (!entered) return <div className="field-hint">Expected: <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{selectedMed.nafdac_reg_number}</strong></div>
+                    return matches
+                      ? <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 3 }}>✓ Matches catalog</div>
+                      : <div style={{ fontSize: 11, color: 'var(--warning)', marginTop: 3 }}>⚠ Does not match catalog number for {selectedMed.generic_name}</div>
+                  })()}
+                </div>
+
+                <div className="field">
+                  <label>Brand name</label>
+                  <input value={f.brand_name} onChange={e => set('brand_name', e.target.value)} placeholder="Optional" />
+                </div>
+
+                <div className="form-row-2">
+                  <div className="field">
+                    <label>Unit cost ({currency})</label>
+                    <input type="number" min={0} step="0.01" inputMode="decimal" value={f.unit_cost} onChange={e => set('unit_cost', e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label>Selling price ({currency})</label>
+                    <input type="number" min={0} step="0.01" inputMode="decimal" value={f.selling_price} onChange={e => set('selling_price', e.target.value)} />
                   </div>
                 </div>
-                {f.quantity_type === 'packs' && (
-                  <div style={{display:'flex', gap:8, alignItems:'center', marginTop:6}}>
-                    <div style={{flex:1}}>
-                      <label style={{fontSize:11,marginBottom:4,display:'block'}}>Pack size</label>
-                      {(() => {
-                        const selected = medicines.find(m => m.id === f.medicine_id)
-                        const sizes = selected?.standard_pack_sizes?.length > 0
-                          ? selected.standard_pack_sizes
-                          : null
-                        const sizeList = sizes ?? [7,10,14,28,30,56,60,84,100,120,500]
-                        return (
-                          <CustomSelect
-                            value={String(f.pack_size)}
-                            onChange={v => set('pack_size', v)}
-                            placeholder="— Select pack size —"
-                            options={[
-                              ...sizeList.map(s => ({ value: String(s), label: `${s} ${f.dispensing_unit}s per pack` })),
-                              { value: 'custom', label: 'Other (enter manually)' },
-                            ]}
-                          />
-                        )
-                      })()}
-                      {String(f.pack_size) === 'custom' && (
-                        <input type="number" min={1}
-                          style={{marginTop:6, width:'100%'}}
-                          placeholder="Enter pack size e.g. 28, 56, 84, 100"
-                          onBlur={e => { if (e.target.value) set('pack_size', e.target.value) }}
-                          onKeyDown={e => { if (e.key === 'Enter' && e.target.value) set('pack_size', e.target.value) }}
-                          autoFocus
-                        />
-                      )}
-                      <div style={{fontSize:10,color:'var(--text-muted)',marginTop:3}}>
-                        Check the number of {f.dispensing_unit}s printed on the packaging
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {f.quantity_type === 'packs' && f.quantity && f.pack_size && f.pack_size !== '' && f.pack_size !== 'custom' && Number(f.pack_size) > 1 && Number(f.quantity) > 0 && (
-                  <div style={{marginTop:8, padding:'10px 14px', background:'rgba(25,194,181,0.08)', border:'1px solid rgba(25,194,181,0.2)', borderRadius:'var(--r-md)', fontSize:13, color:'var(--primary)', fontFamily:'var(--font-mono)', fontWeight:700}}>
-                    {Number(f.quantity)} packs × {Number(f.pack_size)} {f.dispensing_unit}s = {(Number(f.quantity) * Number(f.pack_size)).toLocaleString()} {f.dispensing_unit}s total
-                  </div>
-                )}
-                <div style={{marginTop:6}}>
-                  <label style={{fontSize:11,marginBottom:4,display:'block'}}>Dispensing unit</label>
+
+                <div className="field">
+                  <label>Supplier</label>
                   <CustomSelect
-                    value={f.dispensing_unit}
-                    onChange={v => set('dispensing_unit', v)}
-                    options={['tablet','capsule','vial','sachet','bottle','ampoule','tube','patch','unit'].map(u => ({ value: u, label: u.charAt(0).toUpperCase() + u.slice(1) }))}
+                    value={f.supplier_id}
+                    onChange={v => set('supplier_id', v)}
+                    placeholder="None / unknown"
+                    options={[{ value: '', label: 'None / unknown' }, ...suppliers.map(s => ({ value: s.id, label: s.name }))]}
                   />
                 </div>
-                <div className="field-hint">Units received — published to availability network</div>
+
+                <div className="form-row-2">
+                  <div className="field">
+                    <label>Storage condition</label>
+                    <CustomSelect
+                      value={f.storage_condition}
+                      onChange={v => set('storage_condition', v)}
+                      options={STORAGE_CONDS.map(c => ({ value: c, label: c.replace(/_/g, ' ') }))}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Storage location</label>
+                    <input value={f.storage_location} onChange={e => set('storage_location', e.target.value)} placeholder="e.g. Shelf B2" />
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Manufacture date</label>
+                  <input type="date" value={f.manufacture_date} onChange={e => set('manufacture_date', e.target.value)} />
+                </div>
+
+                <div className="field">
+                  <label>Notes</label>
+                  <textarea value={f.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes about this batch" />
+                </div>
               </div>
-              <div className="field">
-                <label>Reorder level</label>
-                <input type="number" min={0} value={f.reorder_level} onChange={e => set('reorder_level', e.target.value)} />
-                <div className="field-hint">Shortage alert fires below this quantity</div>
-              </div>
-            </div>
-            <div className="grid-2">
-              <div className="field"><label>Expiry date *</label><input type="date" required value={f.expiry_date} onChange={e => set('expiry_date', e.target.value)} /></div>
-              <div className="field"><label>Manufacture date</label><input type="date" value={f.manufacture_date} onChange={e => set('manufacture_date', e.target.value)} /></div>
-            </div>
+            )}
           </div>
-        </div>
-        <div>
-          <div className="form-section-title">Supply Chain</div>
-          <div className="form-section" style={{ marginTop: 12 }}>
-            <div className="grid-2">
-              <div className="field"><label>Unit cost ({currency})</label><input type="number" min={0} step="0.01" value={f.unit_cost} onChange={e => set('unit_cost', e.target.value)} /></div>
-              <div className="field"><label>Selling price ({currency})</label><input type="number" min={0} step="0.01" value={f.selling_price} onChange={e => set('selling_price', e.target.value)} /></div>
-            </div>
-            <div className="grid-2">
-              <div className="field">
-                <label>Supplier</label>
-                <CustomSelect
-                  value={f.supplier_id}
-                  onChange={v => set('supplier_id', v)}
-                  placeholder="None / unknown"
-                  options={[{ value: '', label: 'None / unknown' }, ...suppliers.map(s => ({ value: s.id, label: s.name }))]}
-                />
-              </div>
-              <div className="field">
-                <label>Storage condition</label>
-                <CustomSelect
-                  value={f.storage_condition}
-                  onChange={v => set('storage_condition', v)}
-                  options={STORAGE_CONDS.map(c => ({ value: c, label: c.replace(/_/g, ' ') }))}
-                />
-              </div>
-            </div>
-            <div className="field"><label>Storage location</label><input value={f.storage_location} onChange={e => set('storage_location', e.target.value)} placeholder="e.g. Shelf B2, Cold Room 1" /></div>
-          </div>
-        </div>
-      </form>
-      </div>{/* end manual entry wrapper */}
+
+        </form>
+      </div>
     </Modal>
   )
 }
