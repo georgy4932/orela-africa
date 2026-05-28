@@ -77,12 +77,15 @@ export function AuthProvider({ children }) {
   }
 
   async function signUp(email, password, fullName) {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: { full_name: fullName },
+        emailRedirectTo: 'https://app.orela.africa',
+      },
     })
-    return error
+    return { data, error }
   }
 
   async function signOut() {

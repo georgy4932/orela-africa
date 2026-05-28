@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { InlineError } from '../components/shared'
 
-const RESET_REDIRECT = 'https://orela.africa/ng/reset-password'
+const RESET_REDIRECT = 'https://app.orela.africa/reset-password'
 
 export default function AuthPage() {
   const [mode,     setMode]     = useState('signin')
@@ -34,9 +34,16 @@ export default function AuthPage() {
       if (err) setError(err.message)
     } else {
       if (!fullName.trim()) { setError('Full name is required.'); setLoading(false); return }
-      const err = await signUp(email, password, fullName)
-      if (err) setError(err.message)
-      else setSuccess('Account created. Check your email to confirm, then sign in.')
+      const { data, error: err } = await signUp(email, password, fullName)
+      if (err) {
+        setError(err.message)
+      } else if (data?.user?.identities?.length === 0) {
+        // Supabase returns a user with empty identities when the email already exists
+        // and email confirmation is enabled (prevents email enumeration but we surface it)
+        setError('__duplicate__')
+      } else {
+        setSuccess('Account created! Check your email and click the confirmation link to activate your account.')
+      }
     }
     setLoading(false)
   }
@@ -75,7 +82,24 @@ export default function AuthPage() {
                 : 'Set up your facility and start tracking medicine availability.'}
           </div>
 
-          {error   && <InlineError message={error} />}
+          {error === '__duplicate__' ? (
+            <div className="inline-alert alert-warning" style={{ marginBottom: 4, flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span className="inline-alert-icon">!</span>
+                <span>An account with this email already exists.</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                style={{ alignSelf: 'flex-start' }}
+                onClick={() => { setError(null); setSuccess(null); switchMode('signin') }}
+              >
+                Sign in instead →
+              </button>
+            </div>
+          ) : error ? (
+            <InlineError message={error} />
+          ) : null}
           {success && (
             <div className="inline-alert alert-success" style={{ marginBottom: 4 }}>
               <span className="inline-alert-icon">✓</span>

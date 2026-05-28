@@ -8,7 +8,6 @@ import {
   transferStatusClass, transferStatusLabel,
 } from '../utils/formatters'
 import { Badge } from '../components/shared'
-import { appUrl } from '../lib/appUrl'
 
 export default function DashboardPage() {
   const { facility, facilityId } = useFacility()
@@ -145,7 +144,7 @@ export default function DashboardPage() {
               Your facility is not yet visible in the medicine availability network. Other facilities cannot find your stock or request transfers until verification is complete.
               {facility?.registration_number
                 ? <span> Your registration number <strong style={{color:'var(--text-primary)'}}>{facility.registration_number}</strong> has been submitted and is under review.</span>
-                : <span> Please add your PCN/NAFDAC registration number in <a href={appUrl('/settings')} style={{color:'var(--warning)'}}>Settings → Network Identity</a> to begin verification.</span>
+                : <span> Please add your PCN/NAFDAC registration number in <Link to="/settings" style={{color:'var(--warning)'}}>Settings → Network Identity</Link> to begin verification.</span>
               }
             </div>
             <div style={{fontSize:11, color:'var(--text-muted)', marginTop:6}}>
@@ -163,19 +162,37 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Zero state — network framing */}
+      {/* Zero state — quick-start setup guide */}
       {!hasInventory && !loading && (
         <div className="card card-pad" style={{ marginBottom: 20, borderColor: 'var(--primary-border)', background: 'var(--primary-dim)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-                Make your facility visible in the medicine availability network
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+            Get started — set up your facility
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+            <Link to="/inventory" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: '12px 14px', background: 'var(--bg-surface)', border: '1px solid var(--primary-border)', borderRadius: 'var(--r-md)', cursor: 'pointer' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary)', marginBottom: 3 }}>Add your inventory →</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Log medicine batches to publish stock to the network</div>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Add inventory to power local medicine availability intelligence. Other verified facilities and clinics in your area will be able to locate medicines at your facility and request transfers when they face shortages.
+            </Link>
+            <Link to="/settings" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: '12px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', cursor: 'pointer' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>Network Identity →</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Add registration number to start verification</div>
               </div>
-            </div>
-            <Link to="/inventory" className="btn btn-primary btn-sm" style={{ flexShrink: 0 }}>Add first batch →</Link>
+            </Link>
+            <Link to="/staff" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: '12px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', cursor: 'pointer' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>Staff setup →</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Invite colleagues and manage access</div>
+              </div>
+            </Link>
+            <Link to="/medicine-alerts" style={{ textDecoration: 'none' }}>
+              <div style={{ padding: '12px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', cursor: 'pointer' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>Alert bulletin →</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>View public NAFDAC medicine safety alerts</div>
+              </div>
+            </Link>
           </div>
         </div>
       )}
