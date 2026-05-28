@@ -40,8 +40,9 @@ export default function AppShell() {
 
   const staffRole = facility?.staffRole ?? profile?.role ?? ''
   const roleLabel = staffRole.replace(/_/g, ' ')
+  const totalBadge = alertCount + transferCount + drugAlertCount
 
-  const sidebarContent = (
+  const navContent = (
     <>
       {/* Brand */}
       <div className="sidebar-brand">
@@ -82,30 +83,39 @@ export default function AppShell() {
           <NavItem to="/settings"  label="Settings"          icon={<GearIcon />} />
         </div>
       </nav>
-
-      {/* User */}
-      <div className="sidebar-footer">
-        <div className="sidebar-user-card">
-          <div className="sidebar-user-name truncate">{profile?.full_name ?? 'User'}</div>
-          <div className="sidebar-user-role">{roleLabel || 'Pharmacist'}</div>
-        </div>
-        <button className="sidebar-signout" onClick={handleSignOut}>
-          <SignOutIcon />
-          Sign out
-        </button>
-      </div>
     </>
+  )
+
+  const sidebarFooter = (
+    <div className="sidebar-footer">
+      <div className="sidebar-user-card">
+        <div className="sidebar-user-name truncate">{profile?.full_name ?? 'User'}</div>
+        <div className="sidebar-user-role">{roleLabel || 'Pharmacist'}</div>
+      </div>
+      <button className="sidebar-signout" onClick={handleSignOut}>
+        <SignOutIcon />
+        Sign out
+      </button>
+    </div>
   )
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">{sidebarContent}</aside>
+      <aside className="sidebar">
+        {navContent}
+        {sidebarFooter}
+      </aside>
 
       {/* Mobile topbar */}
       <div className="mobile-topbar">
-        <button className="mobile-menu-btn" onClick={() => setMobileOpen(true)}>
-          <HamburgerIcon />
-        </button>
+        <div className="mobile-menu-wrap">
+          <button className="mobile-menu-btn" onClick={() => setMobileOpen(true)}>
+            <HamburgerIcon />
+          </button>
+          {totalBadge > 0 && (
+            <span className="mobile-topbar-badge">{totalBadge > 9 ? '9+' : totalBadge}</span>
+          )}
+        </div>
         <div className="mobile-topbar-brand">
           <div className="sidebar-product-eyebrow" style={{ marginBottom: 0 }}>Orela</div>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
@@ -120,13 +130,16 @@ export default function AppShell() {
         <>
           <div className="mobile-overlay" onClick={() => setMobileOpen(false)} />
           <aside className="sidebar mobile-drawer">
-            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 10px 0' }}>
-              <button onClick={() => setMobileOpen(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer', padding: 4 }}>
-                ×
+            <div className="mobile-drawer-header">
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Menu</div>
+              <button className="mobile-drawer-close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+                <CloseIcon />
               </button>
             </div>
-            {sidebarContent}
+            <div className="mobile-drawer-body">
+              {navContent}
+            </div>
+            {sidebarFooter}
           </aside>
         </>
       )}
@@ -181,3 +194,4 @@ const UsersIcon    = () => ic(<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4
 const GearIcon     = () => ic(<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>)
 const SignOutIcon  = () => ic(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>, { width: 13, height: 13 })
 const HamburgerIcon = () => ic(<><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>, { width: 18, height: 18 })
+const CloseIcon     = () => ic(<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>, { width: 16, height: 16 })
