@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFacility } from '../hooks/useFacility'
 import { fmtDate, fmtNumber, facilityTypeLabel } from '../utils/formatters'
-import { EmptyState, Badge, CustomSelect } from '../components/shared'
+import { EmptyState, Badge, CustomSelect, InlineError } from '../components/shared'
 import UnverifiedGate from '../components/shared/UnverifiedGate'
 
 const DOSAGE_FORMS = ['','tablet','capsule','syrup','suspension','injection','infusion','cream','ointment','drops','inhaler','suppository','patch','powder','other']
@@ -19,6 +19,7 @@ export default function SearchPage() {
   const [results,  setResults]  = useState(null)
   const [loading,  setLoading]  = useState(false)
   const [searched, setSearched] = useState(false)
+  const [error,    setError]    = useState(null)
 
   if (facility && !facility.is_verified) {
     return <UnverifiedGate page="Medicine Network" reason="Search is restricted to verified facilities to maintain network integrity and protect facility data." />
@@ -27,8 +28,8 @@ export default function SearchPage() {
   async function handleSearch(e) {
     e?.preventDefault()
     if (!query.trim() && !state.trim() && !city.trim()) return
-    setLoading(true); setSearched(true)
-    const { data, error } = await supabase.rpc('medicine_search', {
+    setLoading(true); setSearched(true); setError(null)
+    const { data, error: rpcError } = await supabase.rpc('medicine_search', {
       p_query:       query   || null,
       p_country:     country || null,
       p_state:       state   || null,
@@ -37,7 +38,8 @@ export default function SearchPage() {
       p_limit:       50,
       p_offset:      0,
     })
-    setResults(error ? [] : (data ?? []))
+    if (rpcError) setError(rpcError.message)
+    setResults(data ?? [])
     setLoading(false)
   }
 
@@ -121,6 +123,12 @@ export default function SearchPage() {
             </div>
           </form>
         </div>
+
+        {error && (
+          <div style={{ padding: '0 24px 16px' }}>
+            <InlineError message={error} />
+          </div>
+        )}
 
         {/* Network stats */}
         {!searched && (
