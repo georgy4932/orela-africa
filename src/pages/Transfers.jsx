@@ -18,12 +18,8 @@ const TABS = [
 
 export default function TransfersPage() {
   const { facilityId, facility } = useFacility()
-
-  if (facility && !facility.is_verified) {
-    return <UnverifiedGate page="Redistribution" reason="Stock transfers are restricted to verified facilities. Verification ensures all parties in a transfer are legitimate healthcare providers." />
-  }
-  const location       = useLocation()
-  const prefill        = location.state?.prefill ?? null
+  const location                 = useLocation()
+  const prefill                  = location.state?.prefill ?? null
   const [transfers, setTransfers] = useState([])
   const [loading,   setLoading]   = useState(true)
   const [tab,       setTab]       = useState('all')
@@ -31,6 +27,10 @@ export default function TransfersPage() {
   const [action,    setAction]    = useState(null)
 
   useEffect(() => { if (facilityId) load() }, [facilityId, tab])
+
+  if (facility && !facility.is_verified) {
+    return <UnverifiedGate page="Redistribution" reason="Stock transfers are restricted to verified facilities. Verification ensures all parties in a transfer are legitimate healthcare providers." />
+  }
 
   async function load() {
     setLoading(true)

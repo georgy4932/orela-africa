@@ -389,7 +389,15 @@ function AddModal({ facilityId, medicines, suppliers, currency, onClose, onSucce
   const set = (k, v) => setF(p => ({ ...p, [k]: v }))
 
   async function handleSubmit(e) {
-    e.preventDefault(); setError(null); setLoading(true)
+    e.preventDefault(); setError(null)
+    const rawQty = Number(f.quantity)
+    if (!rawQty || rawQty <= 0) { setError('Quantity must be greater than zero.'); return }
+    if (f.quantity_type === 'packs') {
+      const ps = f.pack_size
+      if (!ps || ps === '' || ps === 'custom') { setError('Select or enter a pack size when entering quantity in packs.'); return }
+      if (Number(ps) <= 0) { setError('Pack size must be greater than zero.'); return }
+    }
+    setLoading(true)
     const { error: err } = await supabase.rpc('create_inventory_item', {
       p_facility_id:      facilityId,
       p_medicine_id:      f.medicine_id,
@@ -608,8 +616,14 @@ function AdjModal({ item, onClose, onSuccess }) {
   const available = item.quantity_available - item.quantity_reserved
 
   async function handleSubmit(e) {
-    e.preventDefault(); setError(null); setLoading(true)
-    const delta = isOut ? -Math.abs(Number(qty)) : Math.abs(Number(qty))
+    e.preventDefault(); setError(null)
+    const n = Math.abs(Number(qty))
+    if (!n || n <= 0) { setError('Quantity must be greater than zero.'); return }
+    if (isOut && n > available) {
+      setError(`Cannot remove ${n} units — only ${available} available (excluding reserved stock).`); return
+    }
+    setLoading(true)
+    const delta = isOut ? -n : n
     const { error: err } = await supabase.rpc('update_inventory_quantity', {
       p_inventory_item_id: item.id,
       p_quantity_change:   delta,

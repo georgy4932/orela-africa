@@ -44,6 +44,14 @@ function RequireFacility({ children }) {
   return children
 }
 
+function RequireAdmin({ children }) {
+  const { session, profile, loading } = useAuth()
+  if (loading) return <GlobalSpinner />
+  if (!session) return <Navigate to="/auth" replace />
+  if (profile?.role !== 'system_admin') return <Navigate to="/" replace />
+  return children
+}
+
 function AppRoutes() {
   const { session, facility, profile, loading } = useAuth()
   if (loading) return <GlobalSpinner />
@@ -53,7 +61,7 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Admin panel — system_admin only */}
-      <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
+      <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
 
       {/* Public pages — no auth required */}
       <Route path="/docs"            element={<DocsPage />} />
