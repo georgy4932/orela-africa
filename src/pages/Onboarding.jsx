@@ -145,10 +145,21 @@ export default function OnboardingPage() {
             {/* Step 1 — Location */}
             {step === 1 && (
               <>
-                <div className="field">
-                  <label>Street address *</label>
-                  <input required placeholder="14 Broad Street"
-                    value={form.address_line1} onChange={e => set('address_line1', e.target.value)} />
+                <div className="field" style={{ maxWidth: 240 }}>
+                  <label>Country *</label>
+                  <CustomSelect
+                    value={form.country}
+                    onChange={v => setForm(f => ({ ...f, country: v, state_province: '', city: '' }))}
+                    options={[
+                      { value: 'NG', label: 'Nigeria' },
+                      { value: 'GH', label: 'Ghana' },
+                      { value: 'KE', label: 'Kenya' },
+                      { value: 'ZA', label: 'South Africa' },
+                      { value: 'UG', label: 'Uganda' },
+                      { value: 'TZ', label: 'Tanzania' },
+                      { value: 'ET', label: 'Ethiopia' },
+                    ]}
+                  />
                 </div>
                 <div className="grid-2">
                   <div className="field">
@@ -181,21 +192,11 @@ export default function OnboardingPage() {
                     )}
                   </div>
                 </div>
-                <div className="field" style={{ maxWidth: 200 }}>
-                  <label>Country</label>
-                  <CustomSelect
-                    value={form.country}
-                    onChange={v => setForm(f => ({ ...f, country: v, state_province: '', city: '' }))}
-                    options={[
-                      { value: 'NG', label: 'Nigeria' },
-                      { value: 'GH', label: 'Ghana' },
-                      { value: 'KE', label: 'Kenya' },
-                      { value: 'ZA', label: 'South Africa' },
-                      { value: 'UG', label: 'Uganda' },
-                      { value: 'TZ', label: 'Tanzania' },
-                      { value: 'ET', label: 'Ethiopia' },
-                    ]}
-                  />
+                <div className="field">
+                  <label>Street address *</label>
+                  <input required placeholder="e.g. 14 Broad Street, Victoria Island"
+                    value={form.address_line1} onChange={e => set('address_line1', e.target.value)} />
+                  <div className="field-hint">This will be verified against your facility registration. Enter the address exactly as it appears on your PCN/NAFDAC licence.</div>
                 </div>
               </>
             )}
