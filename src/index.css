@@ -584,3 +584,93 @@ tbody tr:last-child td{border-bottom:none}
   border:1px solid rgba(239,68,68,0.35);border-radius:6px;padding:3px 10px;font-size:12px;
 }
 .drug-alert-banner-link:hover{background:rgba(239,68,68,0.2)}
+
+/* ================================================================
+   MOBILE OPERATIONAL COMPONENTS
+   Field-operations UI — rendered only by mobile component trees
+   ================================================================ */
+
+/* ── Mobile dashboard shell ── */
+.mob-dash{display:flex;flex-direction:column;gap:0;padding-bottom:8px}
+
+/* ── Drug safety banner ── */
+.mob-safety-banner{display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(220,38,38,0.1);border:1px solid rgba(220,38,38,0.3);border-radius:var(--r-lg);margin-bottom:14px;text-decoration:none;color:inherit;transition:background var(--t)}
+.mob-safety-banner:active{background:rgba(220,38,38,0.16)}
+.mob-safety-dot{width:8px;height:8px;border-radius:50%;background:#dc2626;flex-shrink:0;animation:pulse 1.5s ease-in-out infinite}
+.mob-safety-text{flex:1;min-width:0}
+.mob-safety-title{display:block;font-size:13px;font-weight:700;color:#fca5a5;line-height:1.3}
+.mob-safety-sub{display:block;font-size:11px;color:rgba(252,165,165,0.7);margin-top:2px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.45}}
+
+/* ── Urgency chips row ── */
+.mob-urgency-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.mob-urgency-chip{display:inline-flex;align-items:center;padding:6px 12px;border-radius:var(--r-md);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;transition:opacity var(--t)}
+.mob-urgency-chip:active{opacity:0.75}
+.mob-urg-warning{background:rgba(245,165,36,0.12);border:1px solid rgba(245,165,36,0.3);color:var(--warning)}
+.mob-urg-neutral{background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary)}
+
+/* ── Primary action grid ── */
+.mob-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.mob-action{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:18px 12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);text-decoration:none;position:relative;transition:border-color var(--t),background var(--t);min-height:88px}
+.mob-action:active{background:var(--bg-elevated);border-color:var(--border-strong)}
+.mob-action-accent{border-color:var(--primary-border);background:var(--primary-dim)}
+.mob-action-accent:active{background:rgba(25,194,181,0.14)}
+.mob-action-icon{font-size:22px;line-height:1}
+.mob-action-label{font-size:12px;font-weight:600;color:var(--text-secondary);text-align:center;line-height:1.2}
+.mob-action-accent .mob-action-label{color:var(--primary)}
+.mob-action-badge{position:absolute;top:10px;right:10px;min-width:18px;height:18px;background:var(--warning);color:#07111f;border-radius:99px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px}
+
+/* ── Compact stat row ── */
+.mob-stat-row{display:flex;align-items:center;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 0;margin-bottom:16px;overflow:hidden}
+.mob-stat-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.mob-stat-val{font-size:20px;font-weight:800;letter-spacing:-0.04em;font-variant-numeric:tabular-nums;line-height:1}
+.mob-stat-lbl{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-disabled)}
+.mob-stat-divider{width:1px;height:32px;background:var(--border-soft);flex-shrink:0}
+
+/* ── Section block ── */
+.mob-section{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:12px}
+.mob-section-link-block{display:block;text-decoration:none;color:inherit;padding:14px 16px;transition:background var(--t)}
+.mob-section-link-block:active{background:var(--bg-elevated)}
+.mob-section-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 0}
+.mob-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted)}
+.mob-section-link{font-size:11px;font-weight:600;color:var(--primary);text-decoration:none}
+
+/* ── Generic item row ── */
+.mob-item-row{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--border-soft)}
+.mob-item-row:first-of-type{border-top:none}
+.mob-item-row-link{text-decoration:none;color:inherit;transition:background var(--t)}
+.mob-item-row-link:active{background:var(--bg-elevated)}
+.mob-item-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mob-item-name{font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mob-item-meta{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize}
+.mob-item-time{font-size:10px;color:var(--text-disabled);flex-shrink:0}
+.mob-item-qty{font-size:12px;font-family:var(--font-mono);font-weight:700;flex-shrink:0}
+
+/* ── Mobile analytics header ── */
+.mob-analytics-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.mob-analytics-title{font-size:18px;font-weight:700;color:var(--text-primary);letter-spacing:-0.03em}
+
+/* ── Mobile KPI grid ── */
+.mob-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.mob-kpi-card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 14px 12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.mob-kpi-card.mob-kpi-warn{border-color:var(--warning-border);background:var(--warning-dim)}
+.mob-kpi-card.mob-kpi-danger{border-color:var(--danger-border);background:var(--danger-dim)}
+.mob-kpi-val{font-size:28px;font-weight:800;letter-spacing:-0.05em;line-height:1;font-variant-numeric:tabular-nums}
+.mob-kpi-lbl{font-size:10.5px;color:var(--text-muted);font-weight:500}
+.mob-kpi-sub{font-size:10px;color:var(--text-disabled)}
+
+/* ── Movement summary row ── */
+.mob-movement-row{display:flex;align-items:stretch;padding:14px 0 4px}
+.mob-movement-sep{width:1px;background:var(--border-soft);margin:0 4px}
+.mob-movement-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 4px}
+.mob-movement-num{font-size:22px;font-weight:800;letter-spacing:-0.04em;line-height:1;font-variant-numeric:tabular-nums}
+.mob-movement-lbl{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em}
+
+/* ── Expiry risk rows ── */
+.mob-expiry-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px;border-top:1px solid var(--border-soft)}
+.mob-expiry-left{flex:1;min-width:0}
+.mob-expiry-name{font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mob-expiry-meta{display:flex;gap:8px;font-size:10.5px;color:var(--text-muted);margin-top:1px}
+.mob-expiry-days{font-size:12px;font-weight:700;font-family:var(--font-mono);color:var(--text-muted);flex-shrink:0}
+.mob-expiry-days.urgent{color:var(--warning)}
+.mob-expiry-days.expired{color:var(--danger)}

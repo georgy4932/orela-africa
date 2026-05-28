@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFacility } from '../hooks/useFacility'
 import {
@@ -13,6 +14,7 @@ import {
 import {
   format, subDays, startOfWeek, addWeeks, parseISO, isAfter,
 } from 'date-fns'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const C = {
   primary: '#19c2b5',
@@ -25,6 +27,7 @@ const C = {
 // Main page
 // ---------------------------------------------------------------------------
 export default function AnalyticsPage() {
+  const isMobile = useIsMobile()
   const { facility, facilityId } = useFacility()
   const [period,    setPeriod]    = useState(30)  // days for chart/filters
   const [items,     setItems]     = useState(null)
@@ -218,6 +221,22 @@ export default function AnalyticsPage() {
   const trxFilled  = trxAll.filter(t => t.status === 'fulfilled').length
   const trxPending = trxAll.filter(t => ['pending','approved','in_transit'].includes(t.status)).length
   const fillRate   = trxClosed > 0 ? Math.round(trxFilled / trxClosed * 100) : null
+
+  // ── Mobile: no charts, operational summary only ────────────────────────────
+  if (isMobile) {
+    return (
+      <MobileAnalytics
+        kpi={kpi}
+        movTotals={movTotals}
+        expiryRisk={expiryRisk}
+        trxPending={trxPending}
+        period={period}
+        setPeriod={setPeriod}
+        expiryThr={expiryThr}
+        facility={facility}
+      />
+    )
+  }
 
   // -------------------------------------------------------------------------
   // Render
@@ -583,4 +602,132 @@ function buildWeeklyData(movements, periodDays) {
   }
 
   return data
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOBILE ANALYTICS — numbers and lists, zero charts
+// ─────────────────────────────────────────────────────────────────────────────
+function MobileAnalytics({ kpi, movTotals, expiryRisk, trxPending, period, setPeriod, expiryThr }) {
+  return (
+    <div className="mob-dash">
+
+      {/* Compact header + period toggle */}
+      <div className="mob-analytics-header">
+        <div className="mob-analytics-title">Supply Intelligence</div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[7, 30, 90].map(d => (
+            <button
+              key={d}
+              className={`chip${period === d ? ' active' : ''}`}
+              onClick={() => setPeriod(d)}
+              style={{ padding: '3px 8px', fontSize: 11 }}
+            >{d}d</button>
+          ))}
+        </div>
+      </div>
+
+      {/* KPI grid — 2×2, no charts */}
+      <div className="mob-kpi-grid">
+        <div className="mob-kpi-card">
+          <div className="mob-kpi-val" style={{ color: 'var(--primary)' }}>{fmtNumber(kpi.batches)}</div>
+          <div className="mob-kpi-lbl">Active batches</div>
+        </div>
+        <div className="mob-kpi-card">
+          <div className="mob-kpi-val">{fmtNumber(kpi.units)}</div>
+          <div className="mob-kpi-lbl">Units on hand</div>
+        </div>
+        <div className={`mob-kpi-card${kpi.atRisk > 0 ? ' mob-kpi-warn' : ''}`}>
+          <div className="mob-kpi-val" style={{ color: kpi.atRisk > 0 ? 'var(--warning)' : undefined }}>
+            {fmtNumber(kpi.atRisk)}
+          </div>
+          <div className="mob-kpi-lbl">At-risk items</div>
+          {kpi.atRisk > 0 && (
+            <div className="mob-kpi-sub">{kpi.outOfStock} out · {kpi.lowStock} low</div>
+          )}
+        </div>
+        <div className={`mob-kpi-card${kpi.expiring > 0 ? ' mob-kpi-danger' : ''}`}>
+          <div className="mob-kpi-val" style={{ color: kpi.expiring > 0 ? 'var(--danger)' : undefined }}>
+            {fmtNumber(kpi.expiring)}
+          </div>
+          <div className="mob-kpi-lbl">Expiring ≤{expiryThr}d</div>
+        </div>
+      </div>
+
+      {/* Movement summary — last N days */}
+      <div className="mob-section">
+        <div className="mob-section-head">
+          <span className="mob-section-title">Movements · last {period} days</span>
+        </div>
+        <div className="mob-movement-row">
+          <div className="mob-movement-item">
+            <div className="mob-movement-num" style={{ color: 'var(--success)' }}>{fmtNumber(movTotals.receipt)}</div>
+            <div className="mob-movement-lbl">Received</div>
+          </div>
+          <div className="mob-movement-sep" />
+          <div className="mob-movement-item">
+            <div className="mob-movement-num" style={{ color: 'var(--primary)' }}>{fmtNumber(movTotals.dispensed)}</div>
+            <div className="mob-movement-lbl">Dispensed</div>
+          </div>
+          <div className="mob-movement-sep" />
+          <div className="mob-movement-item">
+            <div className="mob-movement-num" style={{ color: movTotals.expired > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+              {fmtNumber(movTotals.expired)}
+            </div>
+            <div className="mob-movement-lbl">Expired</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Transfer pipeline */}
+      {trxPending > 0 && (
+        <Link to="/transfers" className="mob-section mob-section-link-block">
+          <div className="mob-section-head">
+            <span className="mob-section-title">Active transfers</span>
+            <span className="mob-section-link">Manage →</span>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', paddingTop: 4 }}>
+            {trxPending} transfer{trxPending > 1 ? 's' : ''} pending action
+          </div>
+        </Link>
+      )}
+
+      {/* Expiry risk list */}
+      {expiryRisk.length > 0 && (
+        <div className="mob-section">
+          <div className="mob-section-head">
+            <span className="mob-section-title">Expiry risk</span>
+            <Link to="/inventory" className="mob-section-link">Manage →</Link>
+          </div>
+          {expiryRisk.slice(0, 10).map(item => {
+            const d = daysUntilExpiry(item.expiry_date)
+            const isExp   = d !== null && d < 0
+            const isUrgent = d !== null && d <= 30
+            return (
+              <div key={item.id} className="mob-expiry-row">
+                <div className="mob-expiry-left">
+                  <div className="mob-expiry-name">{item.medicines?.generic_name ?? '—'}</div>
+                  <div className="mob-expiry-meta">
+                    {item.batch_number && <span>{item.batch_number}</span>}
+                    <span>{fmtNumber((item.quantity_available ?? 0) - (item.quantity_reserved ?? 0))} units</span>
+                  </div>
+                </div>
+                <div className={`mob-expiry-days${isExp ? ' expired' : isUrgent ? ' urgent' : ''}`}>
+                  {isExp ? 'EXPIRED' : d !== null ? `${d}d` : fmtDate(item.expiry_date)}
+                </div>
+              </div>
+            )
+          })}
+          {expiryRisk.length > 10 && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '8px 0 0', textAlign: 'center' }}>
+              +{expiryRisk.length - 10} more — view full list on desktop
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ textAlign: 'center', padding: '16px 0 4px', fontSize: 11, color: 'var(--text-disabled)' }}>
+        Charts and full reports on desktop
+      </div>
+    </div>
+  )
 }

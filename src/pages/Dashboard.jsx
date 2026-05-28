@@ -8,8 +8,10 @@ import {
   transferStatusClass, transferStatusLabel,
 } from '../utils/formatters'
 import { Badge } from '../components/shared'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 export default function DashboardPage() {
+  const isMobile = useIsMobile()
   const { facility, facilityId } = useFacility()
   const expiryThreshold = facility?.near_expiry_threshold_days ?? 90
   const [stats,     setStats]     = useState(null)
@@ -98,6 +100,28 @@ export default function DashboardPage() {
 
   const hasInventory = stats && stats.total > 0
   const atRisk       = (stats?.lowStock ?? 0) + (stats?.outOfStock ?? 0)
+
+  // ── Mobile: completely separate operational UI ────────────────────────────
+  if (isMobile) {
+    return (
+      <MobileDashboard
+        facility={facility}
+        facilityId={facilityId}
+        loading={loading}
+        stats={stats}
+        alerts={alerts}
+        batchAlerts={batchAlerts}
+        transfers={transfers}
+        movements={movements}
+        atRisk={atRisk}
+        hasInventory={hasInventory}
+        onRespondBatch={async (id, status) => {
+          await supabase.rpc('respond_to_alert', { p_response_id: id, p_status: status })
+          loadBatchAlerts()
+        }}
+      />
+    )
+  }
 
   return (
     <div>
@@ -505,5 +529,223 @@ function BatchAlertRow({ response: r, onRespond }) {
         </button>
       </div>
     </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOBILE DASHBOARD — operational field tool, not a web admin panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+function MobileDashboard({
+  facility, facilityId, loading,
+  stats, alerts, batchAlerts, transfers, movements,
+  atRisk, hasInventory, onRespondBatch,
+}) {
+  return (
+    <div className="mob-dash">
+
+      {/* ── Drug safety alerts — highest urgency, always first ── */}
+      {batchAlerts.length > 0 && (
+        <Link to="/drug-alerts" className="mob-safety-banner">
+          <div className="mob-safety-dot" />
+          <div className="mob-safety-text">
+            <span className="mob-safety-title">
+              {batchAlerts.length} medicine safety alert{batchAlerts.length > 1 ? 's' : ''} — action required
+            </span>
+            <span className="mob-safety-sub">Tap to review and respond</span>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </Link>
+      )}
+
+      {/* ── Urgency chips — alerts + at-risk items ── */}
+      {(atRisk > 0 || alerts.length > 0 || transfers.length > 0) && (
+        <div className="mob-urgency-row">
+          {atRisk > 0 && (
+            <Link to="/alerts" className="mob-urgency-chip mob-urg-warning">
+              ⚡ {atRisk} at-risk
+            </Link>
+          )}
+          {alerts.length > 0 && atRisk === 0 && (
+            <Link to="/alerts" className="mob-urgency-chip mob-urg-warning">
+              ⚡ {alerts.length} alert{alerts.length > 1 ? 's' : ''}
+            </Link>
+          )}
+          {transfers.length > 0 && (
+            <Link to="/transfers" className="mob-urgency-chip mob-urg-neutral">
+              ↔ {transfers.length} transfer{transfers.length > 1 ? 's' : ''} active
+            </Link>
+          )}
+          {!facility?.is_verified && (
+            <Link to="/settings" className="mob-urgency-chip mob-urg-warning">
+              ⚠ Unverified
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* ── Primary action grid ── */}
+      <div className="mob-actions">
+        <Link to="/inventory" className="mob-action mob-action-accent">
+          <span className="mob-action-icon">📦</span>
+          <span className="mob-action-label">Add stock</span>
+        </Link>
+        <Link to="/inventory?scan=1" className="mob-action">
+          <span className="mob-action-icon">📷</span>
+          <span className="mob-action-label">Scan medicine</span>
+        </Link>
+        <Link to="/search" className="mob-action">
+          <span className="mob-action-icon">🔍</span>
+          <span className="mob-action-label">Search network</span>
+        </Link>
+        <Link to="/transfers" className="mob-action">
+          <span className="mob-action-icon">↔</span>
+          <span className="mob-action-label">Transfers</span>
+          {transfers.length > 0 && (
+            <span className="mob-action-badge">{transfers.length}</span>
+          )}
+        </Link>
+      </div>
+
+      {/* ── Zero state — no inventory yet ── */}
+      {!loading && !hasInventory && (
+        <div className="mob-section">
+          <div style={{ padding: '20px 0', textAlign: 'center' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
+              No stock recorded yet
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.5 }}>
+              Add your first medicine batch to publish your facility to the network.
+            </div>
+            <Link to="/inventory" className="btn btn-primary btn-sm">Add your first stock →</Link>
+          </div>
+        </div>
+      )}
+
+      {/* ── Stock summary (only if there's data) ── */}
+      {!loading && stats && (
+        <div className="mob-stat-row">
+          <div className="mob-stat-item">
+            <span className="mob-stat-val" style={{ color: 'var(--primary)' }}>{fmtNumber(stats.total)}</span>
+            <span className="mob-stat-lbl">Batches</span>
+          </div>
+          <div className="mob-stat-divider" />
+          <div className="mob-stat-item">
+            <span className="mob-stat-val">{fmtNumber(stats.units)}</span>
+            <span className="mob-stat-lbl">Units</span>
+          </div>
+          <div className="mob-stat-divider" />
+          <div className="mob-stat-item">
+            <span className="mob-stat-val" style={{ color: atRisk > 0 ? 'var(--warning)' : 'var(--success)' }}>
+              {fmtNumber(atRisk)}
+            </span>
+            <span className="mob-stat-lbl">At risk</span>
+          </div>
+          {stats.nearExpiry > 0 && (
+            <>
+              <div className="mob-stat-divider" />
+              <div className="mob-stat-item">
+                <span className="mob-stat-val" style={{ color: 'var(--danger)' }}>{fmtNumber(stats.nearExpiry)}</span>
+                <span className="mob-stat-lbl">Near expiry</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Active shortage alerts ── */}
+      {alerts.length > 0 && (
+        <div className="mob-section">
+          <div className="mob-section-head">
+            <span className="mob-section-title">Shortage alerts</span>
+            <Link to="/alerts" className="mob-section-link">View all →</Link>
+          </div>
+          {alerts.slice(0, 4).map(a => (
+            <MobAlertRow key={a.id} alert={a} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Active transfers ── */}
+      {transfers.length > 0 && (
+        <div className="mob-section">
+          <div className="mob-section-head">
+            <span className="mob-section-title">Transfers</span>
+            <Link to="/transfers" className="mob-section-link">Manage →</Link>
+          </div>
+          {transfers.slice(0, 3).map(t => (
+            <MobTransferRow key={t.id} transfer={t} facilityId={facilityId} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Recent movements (compact) ── */}
+      {movements.length > 0 && (
+        <div className="mob-section">
+          <div className="mob-section-head">
+            <span className="mob-section-title">Recent activity</span>
+            <Link to="/inventory" className="mob-section-link">Inventory →</Link>
+          </div>
+          {movements.slice(0, 4).map(m => {
+            const isIn = m.quantity_change > 0
+            return (
+              <div key={m.id} className="mob-item-row">
+                <div className={`activity-dot ${isIn ? 'success' : 'muted'}`} />
+                <div className="mob-item-content">
+                  <span className="mob-item-name">
+                    {m.inventory_items?.medicines?.generic_name ?? '—'}
+                  </span>
+                  <span className="mob-item-meta">
+                    {m.movement_type?.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <span className="mob-item-qty" style={{ color: isIn ? 'var(--success)' : 'var(--text-muted)' }}>
+                  {isIn ? '+' : ''}{fmtNumber(m.quantity_change)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 12 }}>
+          Loading…
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MobAlertRow({ alert: a }) {
+  const dotCls = { out_of_stock: 'danger', low_stock: 'warning', near_expiry: 'warning' }[a.alert_type] ?? 'muted'
+  return (
+    <Link to="/alerts" className="mob-item-row mob-item-row-link">
+      <div className={`activity-dot ${dotCls}`} />
+      <div className="mob-item-content">
+        <span className="mob-item-name">{a.medicines?.generic_name ?? '—'}</span>
+        <span className="mob-item-meta">{alertTypeLabel(a.alert_type)}</span>
+      </div>
+      <span className="mob-item-time">{fmtRelative(a.created_at)}</span>
+    </Link>
+  )
+}
+
+function MobTransferRow({ transfer: t, facilityId }) {
+  const isOut = t.requesting_facility_id === facilityId
+  const other = isOut ? t.supplying?.name : t.requesting?.name
+  return (
+    <Link to="/transfers" className="mob-item-row mob-item-row-link">
+      <div className={`activity-dot ${t.status === 'pending' ? 'warning' : t.status === 'in_transit' ? 'success' : ''}`} />
+      <div className="mob-item-content">
+        <span className="mob-item-name">{t.medicines?.generic_name ?? '—'}</span>
+        <span className="mob-item-meta">{isOut ? 'From' : 'To'} {other ?? '?'}</span>
+      </div>
+      <span className={`badge ${transferStatusClass(t.status)}`} style={{ fontSize: 9 }}>
+        {transferStatusLabel(t.status)}
+      </span>
+    </Link>
   )
 }
