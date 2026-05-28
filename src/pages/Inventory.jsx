@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useFacility } from '../hooks/useFacility'
 import {
@@ -228,6 +229,7 @@ const FILTER_OPTIONS = [
 
 export default function InventoryPage() {
   const { facilityId, facility, isFacilityAdmin: isAdmin } = useFacility()
+  const navigate = useNavigate()
   const [items,     setItems]     = useState([])
   const [medicines, setMedicines] = useState([])
   const [suppliers, setSuppliers] = useState([])
@@ -238,6 +240,23 @@ export default function InventoryPage() {
   const [adjItem,    setAdjItem]    = useState(null)
   const [editItem,   setEditItem]   = useState(null)
   const [expireItem, setExpireItem] = useState(null)
+  const expiryThreshold = facility?.near_expiry_threshold_days ?? 90
+
+  function isNearExpiry(expiry_date) {
+    const d = daysUntilExpiry(expiry_date)
+    return d !== null && d >= 0 && d <= expiryThreshold
+  }
+
+  function goRedistribute(item) {
+    navigate('/transfers', {
+      state: {
+        prefill: item.medicine_id ? {
+          medicine_id: item.medicine_id,
+          medicine_name: item.medicines?.generic_name,
+        } : null,
+      },
+    })
+  }
 
   const load = useCallback(async () => {
     if (!facilityId) return
@@ -444,7 +463,17 @@ export default function InventoryPage() {
                     }
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: 5 }}>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                      {isNearExpiry(item.expiry_date) && available > 0 && (
+                        <button
+                          className="btn btn-xs"
+                          style={{ color: 'var(--warning)', borderColor: 'var(--warning-border)', background: 'var(--warning-dim)' }}
+                          onClick={() => goRedistribute(item)}
+                          title="Offer this near-expiry stock to other facilities"
+                        >
+                          ♻ Redistribute
+                        </button>
+                      )}
                       <button className="btn btn-ghost btn-xs" onClick={() => setAdjItem(item)}>Adjust</button>
                       <button className="btn btn-ghost btn-xs" onClick={() => setEditItem(item)}>Edit</button>
                       <button className="btn btn-ghost btn-xs" style={{ color: 'var(--danger)' }} onClick={() => setExpireItem(item)}>Expire</button>
@@ -525,6 +554,31 @@ export default function InventoryPage() {
                   Hidden from network search
                 </div>
               )}
+
+              {/* Near-expiry redistribution prompt */}
+              {isNearExpiry(item.expiry_date) && available > 0 && (
+                <div style={{
+                  margin: '6px 0 8px',
+                  background: 'rgba(245,165,36,0.06)',
+                  border: '1px solid rgba(245,165,36,0.22)',
+                  borderRadius: 'var(--r-md)',
+                  padding: '9px 11px',
+                }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--warning)', marginBottom: 5 }}>
+                    ⏱ Near expiry — {available} units available to redistribute
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className="btn btn-sm btn-full"
+                      style={{ background: 'rgba(245,165,36,0.12)', color: 'var(--warning)', borderColor: 'rgba(245,165,36,0.3)', fontSize: 11 }}
+                      onClick={() => goRedistribute(item)}
+                    >
+                      ♻ Offer to network →
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="inv-card-foot">
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--text-muted)' }}>
                   {item.batch_number}
