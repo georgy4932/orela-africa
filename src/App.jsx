@@ -46,10 +46,10 @@ function RequireFacility({ children }) {
 }
 
 function RequireAdmin({ children }) {
-  const { profile, loading } = useAuth()
+  const { session, profile, loading } = useAuth()
   if (loading) return <GlobalSpinner />
-  if (!profile) return <Navigate to="/auth" replace />
-  if (profile.role !== 'system_admin') return <Navigate to="/dashboard" replace />
+  if (!session) return <Navigate to="/auth" replace />
+  if (profile?.role !== 'system_admin') return <Navigate to="/" replace />
   return children
 }
 

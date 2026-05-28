@@ -10,11 +10,6 @@ const DOSAGE_FORMS = ['','tablet','capsule','syrup','suspension','injection','in
 
 export default function SearchPage() {
   const { facilityId, facility } = useFacility()
-
-  // Gate — unverified facilities cannot search the network
-  if (facility && !facility.is_verified) {
-    return <UnverifiedGate page="Medicine Network" reason="Search is restricted to verified facilities to maintain network integrity and protect facility data." />
-  }
   const navigate = useNavigate()
   const [query,    setQuery]    = useState('')
   const [country,  setCountry]  = useState(facility?.country ?? '')
@@ -24,6 +19,10 @@ export default function SearchPage() {
   const [results,  setResults]  = useState(null)
   const [loading,  setLoading]  = useState(false)
   const [searched, setSearched] = useState(false)
+
+  if (facility && !facility.is_verified) {
+    return <UnverifiedGate page="Medicine Network" reason="Search is restricted to verified facilities to maintain network integrity and protect facility data." />
+  }
 
   async function handleSearch(e) {
     e?.preventDefault()

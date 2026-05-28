@@ -10,7 +10,7 @@ export default function AppShell() {
   const navigate                          = useNavigate()
   const location                          = useLocation()
   const [alertCount,       setAlertCount]       = useState(0)
-
+  const [drugAlertCount,   setDrugAlertCount]   = useState(0)
   const [transferCount, setTransferCount] = useState(0)
   const [mobileOpen,    setMobileOpen]    = useState(false)
 
@@ -27,6 +27,10 @@ export default function AppShell() {
       .or(`requesting_facility_id.eq.${facilityId},supplying_facility_id.eq.${facilityId}`)
       .in('status', ['pending', 'approved', 'in_transit'])
       .then(({ count }) => setTransferCount(count ?? 0))
+    supabase.from('alert_facility_responses')
+      .select('id', { count: 'exact', head: true })
+      .eq('facility_id', facilityId).eq('response_status', 'pending')
+      .then(({ count }) => setDrugAlertCount(count ?? 0))
   }, [facilityId])
 
   async function handleSignOut() {
@@ -128,6 +132,19 @@ export default function AppShell() {
       )}
 
       <main className="main-content">
+        {drugAlertCount > 0 && (
+          <div className="drug-alert-banner">
+            <span className="drug-alert-banner-icon">⚠</span>
+            <span className="drug-alert-banner-text">
+              {drugAlertCount === 1
+                ? '1 pending drug safety alert requires your action.'
+                : `${drugAlertCount} pending drug safety alerts require your action.`}
+            </span>
+            <NavLink to="/drug-alerts" className="drug-alert-banner-link">
+              Review now →
+            </NavLink>
+          </div>
+        )}
         <div className="page-wrapper fade-in">
           <Outlet />
         </div>
